@@ -33,7 +33,8 @@ function openSource(record){
   $("source-title").textContent=record.title;$("source-meta").textContent=`${record.publisher} · ${record.evidence_level} · 확인 ${record.retrieved_at}${record.license?" · "+record.license:""}`;
   $("source-body").textContent=record.body;$("source-limit").textContent=record.limitations;
   $("source-location").textContent=record.location?`${record.book} · ${record.section} · ${record.location} · 판본 ${record.source_revision}`:"";
-  $("source-reading").textContent=record.summary?"독해: "+record.summary:"";
+  $("source-location").hidden=!record.location;
+  $("source-reading").textContent=record.summary||"";$("source-reading-section").hidden=!record.summary;
   const link=$("source-link");let valid=false;try{const url=new URL(record.source_url);valid=["https:","http:"].includes(url.protocol);if(valid)link.href=url.href;}catch{}
   link.hidden=!valid;$("source-dialog").showModal();
 }
@@ -57,8 +58,9 @@ function render(){
   const memories=$("memories");memories.replaceChildren();$("memory-count").textContent=String(state.session.memories.length);
   if(!state.session.memories.length)memories.append(node("div","empty-note","수면, 식사, 활동처럼\n나의 일상을 이야기해 보세요."));
   state.session.memories.slice(-8).reverse().forEach(memory=>{const card=node("article","memory-card");card.append(node("div","memory-category",categories[memory.category]||"생활기록"),node("p","",memory.summary),node("span","memory-origin","사용자 발언 · "+new Date(memory.created_at).toLocaleDateString("ko-KR")));memories.append(card);});
-  const sources=$("sources");sources.replaceChildren();$("knowledge-count").textContent=String(state.session.knowledge_count);
+  const sources=$("sources");sources.replaceChildren();
   const latest=[...state.session.messages].reverse().find(m=>m.role==="assistant");const records=latest?.sources||[];
+  $("knowledge-count").textContent=String(records.length);
   if(!records.length)sources.append(node("div","empty-note","질문에 맞는 자료를 찾으면\n출처를 여기에 모아둘게요."));
   records.forEach(record=>{const button=node("button","source-card");button.type="button";button.append(node("span","source-kind",record.evidence_level),node("strong","",record.title),node("span","source-publisher",record.publisher+" ↗"));button.addEventListener("click",()=>openSource(record));sources.append(button);});
   messages.scrollTop=messages.scrollHeight;

@@ -172,6 +172,9 @@ def main():
                 for view in ["생활 관리", "한의학 DB", "일정·예약", "대화"]:
                     page.locator(".app-nav").get_by_role("button", name=view, exact=True).click()
                     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), view
+                # The mobile sidebar is an overlay; dismiss it before navigation.
+                if page.locator("#context-sidebar").is_visible():
+                    page.get_by_role("button", name="사이드바 닫기", exact=True).click()
                 page.get_by_role("button", name="생활 관리", exact=True).click()
                 page.screenshot(path=str(output / "mobile-daily.png"), full_page=True)
                 with page.expect_download() as export:
@@ -223,6 +226,8 @@ def main():
                 expect(page.locator("#checkin-history .record-row")).to_have_count(0)
                 page.get_by_role("button", name="대화", exact=True).click()
                 expect(page.locator(".message.user")).to_contain_text("아침")
+                if not page.locator("#context-sidebar").is_visible():
+                    page.locator("#toggle-sidebar").click()
                 page.reload(wait_until="networkidle")
                 expect(page.locator("#session-select")).to_have_value(second_id)
                 expect(page.locator("#session-select option:checked")).to_contain_text("식사 이야기")

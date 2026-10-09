@@ -17,7 +17,7 @@ function renderOwnCalendar(care){
   for(let i=0;i<42;i++){
     const date=new Date(first);date.setUTCDate(first.getUTCDate()+i);const day=date.toISOString().slice(0,10),found=items.filter(item=>onCalendarDay(item,day));
     const cell=node("button","calendar-cell"+(day.slice(0,7)!==calendarState.month?" outside":"")+(day===care.today?" today":"")+(day===calendarState.day?" selected":""));cell.type="button";cell.dataset.day=day;cell.setAttribute("aria-pressed",String(day===calendarState.day));cell.setAttribute("aria-label",`${day} · ${found.length}개 일정`);const number=node("span","calendar-number",date.getUTCDate());cell.append(number);
-    found.slice(0,2).forEach(item=>cell.append(node("span","calendar-pill "+item.calendarKind,item.title)));if(found.length>2)cell.append(node("span","calendar-more",`+${found.length-2}`));
+    found.slice(0,2).forEach(item=>cell.append(node("span","calendar-pill "+item.calendarKind,item.title)));if(found.length>2)cell.append(node("span","calendar-more",`+${found.length-2}`));if(found.length)cell.append(node("span","calendar-mobile-count",`${found.length}건`));
     cell.addEventListener("click",()=>{calendarState.day=day;calendarState.month=day.slice(0,7);renderOwnCalendar(care);});grid.append(cell);
   }
   $("calendar-day-title").textContent=new Date(calendarState.day+"T12:00:00+09:00").toLocaleDateString("ko-KR",{timeZone:"Asia/Seoul",month:"long",day:"numeric",weekday:"long"});

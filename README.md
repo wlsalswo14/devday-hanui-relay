@@ -77,9 +77,12 @@ AI 대화와 정보 검색은 별도 동의창 없이 대화에서 실행한다.
 python -m unittest discover -s tests -v
 python ui_smoke.py
 python ui_care_smoke.py
+python ui_design_smoke.py
 ```
 
 브라우저 검증에는 Playwright와 Chrome 또는 Playwright Chromium이 필요하다. 앱 실행에는 필요하지 않다. 확장 UI 테스트는 격리된 DB와 명시된 합성 병원·검색 결과를 사용하므로 실제 예약이 발생하지 않는다.
+
+전체 UI의 가독성 개편, 변경 전 디자인 체크포인트, 직접 찾아본 참고 사례와 화면 폭별 검증은 [디자인 기록](docs/DESIGN.md)에 정리했다. `ui_design_smoke.py`는 6개 화면 폭의 가로 넘침·텍스트 대비·원문 창·모바일 캘린더를 격리된 합성 자료로 확인한다.
 
 실제 계정 사용량을 소비하는 합성 대화 검증:
 

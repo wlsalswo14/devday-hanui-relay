@@ -202,10 +202,12 @@ class CareStore:
         return self.dashboard(session)
 
     def save_search(self, session, kind, data):
+        search_id = uuid.uuid4().hex
         with self.store.connect() as db:
             self.owner(db, session)
-            db.execute("INSERT INTO searches VALUES (?,?,?,?,?)", (uuid.uuid4().hex, session, kind, json.dumps(data, ensure_ascii=False), datetime.now(KST).isoformat()))
+            db.execute("INSERT INTO searches VALUES (?,?,?,?,?)", (search_id, session, kind, json.dumps(data, ensure_ascii=False), datetime.now(KST).isoformat()))
             db.execute("DELETE FROM searches WHERE session_id=? AND id NOT IN (SELECT id FROM searches WHERE session_id=? ORDER BY created_at DESC LIMIT 20)", (session, session))
+        return search_id
 
     def booking(self, session, body):
         search_id, hospital_id = body.get("search_id"), body.get("hospital_id")

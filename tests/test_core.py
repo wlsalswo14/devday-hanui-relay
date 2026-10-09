@@ -42,8 +42,8 @@ class CoreTests(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
-    def chat(self, message, mode="demo", consent=True):
-        return self.app.chat(self.session_id, {"message": message, "mode": mode, "consent": consent})
+    def chat(self, message, mode="demo"):
+        return self.app.chat(self.session_id, {"message": message, "mode": mode})
 
     def test_self_report_is_persisted_with_original_message(self):
         result = self.chat("요즘 5시간 정도 자고 낮에 피곤해")
@@ -102,9 +102,10 @@ class CoreTests(unittest.TestCase):
         result = self.app.store.get_session(self.session_id)
         self.assertEqual(result["messages"], [])
 
-    def test_ai_requires_consent(self):
-        with self.assertRaises(ValueError):
-            self.chat("미병이 뭐야?", mode="codex", consent=False)
+    def test_ai_chat_runs_directly(self):
+        result = self.chat("미병이 뭐야?", mode="codex")
+        self.assertEqual(len(result["messages"]), 2)
+        self.assertEqual(len(self.model.calls), 1)
 
     def test_unknown_source_is_rejected(self):
         with self.assertRaises(ModelError):

@@ -1,6 +1,6 @@
 "use strict";
 const $ = id => document.getElementById(id);
-const state = {session: null, config: null, busy: false, consent: false, mode: "codex"};
+const state = {session: null, config: null, busy: false, mode: "codex"};
 const categories = {sleep:"수면",stress:"마음 · 스트레스",diet:"식사",activity:"활동",caffeine:"커피 · 카페인",symptom:"느낀 불편함",goal:"생활 목표"};
 function node(tag, className, text) { const n = document.createElement(tag); if(className)n.className=className; if(text !== undefined)n.textContent=text; return n; }
 function savedId(){try{return localStorage.getItem("hanui_session");}catch{return null;}}
@@ -17,8 +17,10 @@ function setModeDescription(){
   $("mode-description").textContent=state.mode==="codex"?"GPT-6 Luna · High — 현재 로그인된 ChatGPT 계정으로 대화합니다.":"샘플 대화 · 실제 DB 검색 — 모델 호출 없이 화면과 생활기록을 체험합니다.";
 }
 function openSource(record){
-  $("source-title").textContent=record.title;$("source-meta").textContent=`${record.publisher} · ${record.evidence_level} · 확인 ${record.retrieved_at}`;
+  $("source-title").textContent=record.title;$("source-meta").textContent=`${record.publisher} · ${record.evidence_level} · 확인 ${record.retrieved_at}${record.license?" · "+record.license:""}`;
   $("source-body").textContent=record.body;$("source-limit").textContent=record.limitations;
+  $("source-location").textContent=record.location?`${record.book} · ${record.section} · ${record.location} · 판본 ${record.source_revision}`:"";
+  $("source-reading").textContent=record.summary?"독해: "+record.summary:"";
   const link=$("source-link");let valid=false;try{const url=new URL(record.source_url);valid=["https:","http:"].includes(url.protocol);if(valid)link.href=url.href;}catch{}
   link.hidden=!valid;$("source-dialog").showModal();
 }
@@ -35,8 +37,8 @@ function render(){
     const article=node("article",`message ${message.role}`);const label=node("div","message-label");
     if(message.role==="assistant")label.append(node("span","mini-mark","h."));
     label.append(node("span","",message.role==="user"?"나":message.mode==="codex"?"Hanui · Luna High":"Hanui · 샘플 대화"));article.append(label,node("div","bubble",message.content));
-    if(message.sources?.length){const citations=node("div","citations");message.sources.forEach((record,i)=>{const button=node("button","citation",`${i+1} · ${record.title}`);button.type="button";button.addEventListener("click",()=>openSource(record));citations.append(button);});article.append(citations);}
-    if(message.actions?.length){const actions=node("div","citations");message.actions.forEach(action=>{const button=node("button","secondary action-button",action.label||"다음 단계 보기");button.type="button";button.addEventListener("click",()=>openAction(action));actions.append(button);if(action.error)actions.append(node("p","search-note",action.error));});article.append(actions);}
+    if(message.sources?.length){const citations=node("div","citations");message.sources.forEach((record,i)=>{if(record.citations?.length){const passage=node("div","quoted-passage");passage.append(node("span","source-kind",record.category==="classical"?"고문헌 원문":"현대 DB 자료"));record.citations.forEach(c=>{passage.append(node("blockquote","",c.quote),node("p","quote-location",`${record.location||record.title} · 본문 ${c.offset_start+1}–${c.offset_end}자`));});const detail=node("button","citation",`${record.book||record.publisher} · ${record.section||record.title} ↗`);detail.type="button";detail.addEventListener("click",()=>openSource(record));passage.append(detail);article.append(passage);}const button=node("button","citation",`${i+1} · ${record.title}`);button.type="button";button.addEventListener("click",()=>openSource(record));citations.append(button);});article.append(citations);}
+    if(message.actions?.length){const actions=node("div","message-actions");message.actions.forEach(action=>{if(action.type==="hospitals"||action.type==="web"){if(action.completed){const found=action.result?{id:action.search_id,kind:action.type,data:action.result}:state.session.care.searches.find(s=>s.id===action.search_id||(!action.search_id&&s.kind===action.type));if(found)renderLookup(actions,found);}if(action.error)actions.append(node("p","search-note",action.error));return;}const button=node("button","secondary action-button",action.label||"다음 단계 보기");button.type="button";button.addEventListener("click",()=>openAction(action));actions.append(button);});article.append(actions);}
     messages.append(article);
   });
   const memories=$("memories");memories.replaceChildren();$("memory-count").textContent=String(state.session.memories.length);
@@ -50,14 +52,10 @@ function render(){
   if(typeof renderCare==="function")renderCare();
 }
 function updateCount(){$("counter").textContent=`${$("message").value.length} / 2000`;}
-function ensureConsent(){
-  if(state.mode!=="codex"||state.consent)return true;
-  state.consent=window.confirm("AI 대화를 위해 입력한 이야기, 최근 대화·생활기록·체크인·일정과 찾아온 자료를 현재 로그인된 OpenAI 계정의 모델로 전달합니다. 병원·웹 검색을 요청하면 공개 검색어로 OpenAI 웹 검색을 실행합니다. 계속할까요?");return state.consent;
-}
 $("chat-form").addEventListener("submit",async event=>{
-  event.preventDefault();if(state.busy||!state.session)return;const message=$("message").value.trim();if(!message)return;if(!ensureConsent())return;
+  event.preventDefault();if(state.busy||!state.session)return;const message=$("message").value.trim();if(!message)return;
   showError("");busy(true);
-  try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode,consent:state.consent})});$("message").value="";updateCount();render();}
+  try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode})});$("message").value="";updateCount();render();}
   catch(error){showError(error.message);}finally{busy(false);$("message").focus();}
 });
 $("message").addEventListener("input",updateCount);

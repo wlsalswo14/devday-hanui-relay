@@ -12,12 +12,28 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright, expect
 from care import KST
-from server import App, Handler, ROOT
+from server import App, Handler, ROOT, demo_response
+from codex_bridge import validate_result
 
 
 class FixtureModel:
     def available(self):
         return True
+
+    def respond(self, message, history, memories, sources):
+        if "고문헌" in message and sources:
+            s = next((s for s in sources if s["category"] == "classical"), sources[0])
+            return validate_result({"reply": "합성 테스트: 원문을 확인했어요.", "source_ids": [s["id"]],
+                "citations": [{"source_id": s["id"], "quote": s["body"][:80]}], "memories": [], "actions": []}, message, sources)
+        result = demo_response(message, history, memories, sources)
+        result["reply"] = "합성 테스트 응답: " + result["reply"]
+        if "한의원" in message or "공식 자료" in message:
+            result["actions"] = [{"type": "hospitals" if "한의원" in message else "web",
+                "label": "정보 찾기", "query": message, "title": "", "start": "", "note": ""}]
+        return result
+
+    def retrieval_keywords(self, message, history):
+        return ["수면", "起居", "미병", "未病"] if "고문헌" in message else ["미병"]
 
     def search_web(self, query, kind):
         return {"query": query, "summary": "자동 테스트용 합성 검색 결과입니다.",
@@ -50,6 +66,13 @@ def main():
                 page.on("console", lambda m: problems.append(m.text) if m.type == "error" else None)
                 page.goto(f"http://127.0.0.1:{server.server_port}", wait_until="networkidle")
                 page.get_by_text("오늘, 몸과 마음은 어때요?", exact=True).wait_for()
+                def unexpected_dialog(dialog):
+                    problems.append("Unexpected prompt: " + dialog.message)
+                    dialog.dismiss()
+                page.on("dialog", unexpected_dialog)
+                page.locator("#message").fill("미병이 뭐야?")
+                page.locator("#message").press("Enter")
+                expect(page.locator(".message")).to_have_count(2)
                 page.get_by_role("button", name="생활 관리", exact=True).click()
                 page.locator("#checkin-sleep").fill("6.5")
                 page.locator("#checkin-stress").fill("4")
@@ -65,17 +88,17 @@ def main():
                 expect(page.locator("#goals-list")).to_contain_text("누적 1일 실천")
                 page.screenshot(path=str(output / "desktop-daily.png"), full_page=True)
                 page.get_by_role("button", name="한의학 DB", exact=True).click()
-                expect(page.locator("#library-results .library-record")).to_have_count(42)
+                expect(page.locator("#library-results .library-record")).to_have_count(app.store.knowledge_count())
                 page.locator("#library-query").fill("인삼")
                 page.locator("#library-form").get_by_role("button", name="검색", exact=True).click()
-                expect(page.locator("#library-results .library-record")).to_have_count(2)
+                expect(page.locator("#library-results .library-record")).to_have_count(len(app.store.library("인삼")))
                 page.locator("#library-results .library-record").first.get_by_role("button").click()
                 expect(page.locator("#source-dialog")).to_be_visible()
                 page.locator("#close-source").click()
-                page.get_by_role("button", name="병원 찾기", exact=True).click()
-                page.locator("#hospital-query").fill("합성 지역 한의원")
-                page.once("dialog", lambda d: d.accept())
-                page.get_by_role("button", name="병원 검색", exact=True).click()
+                page.get_by_role("button", name="대화", exact=True).click()
+                page.locator("#message").fill("합성 지역 한의원 찾아줘")
+                page.locator("#message").press("Enter")
+                expect(page.locator(".message")).to_have_count(4)
                 expect(page.locator(".hospital-card")).to_have_count(1)
                 assert page.locator(".review-item img").count() == 0
                 page.get_by_role("button", name="예약 준비", exact=True).click()
@@ -102,10 +125,16 @@ def main():
                 assert calendar.count("BEGIN:VEVENT") == 2
                 assert "합성 산책 일정" in calendar
                 page.screenshot(path=str(output / "desktop-calendar.png"), full_page=True)
-                page.get_by_role("button", name="웹 검색", exact=True).click()
-                page.locator("#web-query").fill("합성 웹 검색")
-                page.locator("#web-form").get_by_role("button", name="웹 검색", exact=True).click()
-                expect(page.locator("#web-results .web-card")).to_have_count(1)
+                page.get_by_role("button", name="대화", exact=True).click()
+                page.locator("#message").fill("공식 자료 찾아줘")
+                page.locator("#message").press("Enter")
+                expect(page.locator(".message-actions .web-card")).to_have_count(1)
+                page.locator("#message").fill("수면 관련 고문헌 원문 찾아줘")
+                page.locator("#message").press("Enter")
+                expect(page.locator(".quoted-passage blockquote")).to_have_count(1)
+                expect(page.locator(".quote-location")).to_contain_text("본문")
+                page.screenshot(path=str(output / "desktop-chat-sources.png"), full_page=True)
+                page.remove_listener("dialog", unexpected_dialog)
                 page.reload(wait_until="networkidle")
                 page.get_by_role("button", name="일정·예약", exact=True).click()
                 expect(page.locator("#events-list .record-row")).to_have_count(2)
@@ -114,7 +143,7 @@ def main():
                 expect(page.locator("#events-list .record-row")).to_have_count(1)
                 expect(page.locator("#bookings-list")).to_contain_text("취소 기록")
                 page.set_viewport_size({"width": 390, "height": 844})
-                for view in ["생활 관리", "한의학 DB", "병원 찾기", "일정·예약", "웹 검색"]:
+                for view in ["생활 관리", "한의학 DB", "일정·예약", "대화"]:
                     page.locator(".app-nav").get_by_role("button", name=view, exact=True).click()
                     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), view
                 page.get_by_role("button", name="생활 관리", exact=True).click()
@@ -134,7 +163,7 @@ def main():
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
-    report={"checks":["daily checkin and averages","goal completion","library and source","hospital search UI (synthetic fixture)","review text escaping","booking preparation","external user confirmation","calendar creation","ICS download","Google link excludes private notes","web search UI (synthetic fixture)","reload persistence","booking cancellation","all mobile views","JSON export","full data deletion"],"console_errors":problems}
+    report={"checks":["AI chat and searches start without prompts (synthetic fixture)","daily checkin and averages","goal completion","library and source","hospital search UI (synthetic fixture)","review text escaping","booking preparation","external user confirmation","calendar creation","ICS download","Google link excludes private notes","web search UI (synthetic fixture)","reload persistence","booking cancellation","all mobile views","JSON export","full data deletion"],"console_errors":problems}
     (ROOT / ".runtime" / "ui-care-check.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report,indent=2))
 

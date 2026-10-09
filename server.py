@@ -45,8 +45,8 @@ def demo_response(message, history, memories, sources):
             reply = "아직 저장된 생활기록이 없어요. 최근 수면이나 식사 패턴부터 이야기해 줄래요?"
         return {"reply": reply, "source_ids": [], "memories": additions}
     if re.search(r"예약|병원|캘린더|일정", message):
-        return {"reply": "병원 찾기에서 실제 정보를 검색하고 전화·예약 링크로 연결할 수 있어요. 병원에서 확정을 받은 뒤 알려주면 일정에 남길 수 있어요. 샘플 대화는 웹을 검색하지 않아요.",
-                "source_ids": [], "memories": additions, "actions": [{"type": "hospitals", "label": "병원 찾기", "query": "", "title": "", "start": "", "note": ""}]}
+        return {"reply": "Luna High 대화에서 방문할 지역과 조건을 알려주면 병원 정보를 찾아 전화·예약 링크로 연결해요. 병원에서 확정을 받은 뒤 알려주면 일정에 남길 수 있어요. 샘플 대화는 실제 정보를 찾지 않아요.",
+                "source_ids": [], "memories": additions}
     intro = "이야기한 내용을 생활기록에 남겼어요." if additions else "관련 자료를 찾아봤어요."
     if sources:
         body = sources[0]["body"]
@@ -76,14 +76,14 @@ class App:
 
     def web_search(self, session_id, body, kind):
         self.store.get_session(session_id)
-        if body.get("consent") is not True:
-            raise ValueError("검색어를 OpenAI 웹 검색에 전달하는 데 동의해 주세요.")
         query = text(body.get("query"), "검색어", 350)
         if not hasattr(self.model, "search_web"):
             raise ModelError("웹 검색 모델이 연결되지 않았어요.")
         if not self.lock.acquire(blocking=False):
             raise ValueError("이전 AI 응답을 기다리고 있어요.")
         try:
+            if isinstance(self.model, CodexChat):
+                self.model.lookup_context = {}
             result = self.model.search_web(query, kind)
             self.care.save_search(session_id, kind, result)
             return self.care.dashboard(session_id)
@@ -112,8 +112,6 @@ class App:
             raise ValueError("1~2,000자 안에서 이야기를 입력해 주세요.")
         if mode not in {"codex", "demo"}:
             raise ValueError("지원하지 않는 대화 방식이에요.")
-        if mode == "codex" and body.get("consent") is not True:
-            raise ValueError("AI 대화를 사용하려면 대화·생활기록 전달에 동의해 주세요.")
         if not self.lock.acquire(blocking=False):
             raise ValueError("이전 답변을 기다리고 있어요. 답변이 끝나면 이어서 이야기해 주세요.")
         try:
@@ -126,7 +124,11 @@ class App:
                 past = [m["content"] for m in session["messages"] if m["role"] == "user"]
                 if past:
                     query += " " + past[-1]
-            sources = self.store.search(query)
+            if mode == "codex" and hasattr(self.model, "retrieval_keywords"):
+                keywords = self.model.retrieval_keywords(message.strip(), session["messages"])
+                sources = self.store.search_fulltext(keywords)
+            else:
+                sources = self.store.search(query)
             if isinstance(self.model, CodexChat):
                 care = session["care"]
                 self.model.care_context = {key: care[key] for key in ("today", "summary", "goals", "events", "bookings", "conflicts")}
@@ -135,25 +137,30 @@ class App:
             responder = self.model.respond if mode == "codex" else demo_response
             result = responder(message.strip(), session["messages"], session["memories"], sources)
             actions = result.get("actions", [])
-            # Only explicit public search requests may trigger automatic read-only searches.
+            # Luna selects read-only information tasks from the conversation.
             # Changes to checkins/goals/events always require review in the UI.
             if mode == "codex" and hasattr(self.model, "search_web"):
                 for action in actions[:2]:
                     kind = action.get("type")
-                    explicit = (kind == "hospitals" and re.search(r"병원|한의원", message) and re.search(r"찾|검색|추천|후기|예약", message)) or (kind == "web" and re.search(r"웹|인터넷|검색해|검색해줘|검색해 줘", message))
-                    if explicit and action.get("query"):
+                    lookup = kind in {"hospitals", "web"} and bool(action.get("query"))
+                    if lookup:
                         try:
+                            if isinstance(self.model, CodexChat):
+                                self.model.lookup_context = {"question": message.strip(), "db_records": sources}
                             found = self.model.search_web(action["query"][:350], kind)
-                            self.care.save_search(session_id, kind, found)
+                            action["search_id"] = self.care.save_search(session_id, kind, found)
+                            action["result"] = found
                             action["completed"] = True
-                            action["label"] = "검색 결과 보기"
+                            action["label"] = "찾아본 정보"
                             result["reply"] += "\n\n" + found["summary"]
                         except ModelError:
-                            action["error"] = "웹 검색을 완료하지 못했어요. 병원 찾기 또는 웹 검색에서 다시 시도할 수 있어요."
+                            action["error"] = "정보를 확인하지 못했어요. 대화에서 다시 요청해 주세요."
                     # At most one web request per conversation turn.
-                    if explicit:
+                    if lookup:
                         break
             citations = [s for s in sources if s["id"] in result["source_ids"]]
+            for source in citations:
+                source["citations"] = [c for c in result.get("citations", []) if c["source_id"] == source["id"]]
             return self.store.save_turn(session_id, message.strip(), result["reply"], citations,
                                         result["memories"], mode, actions)
         finally:

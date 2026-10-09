@@ -17,11 +17,11 @@ def main():
             raise RuntimeError("ChatGPT login is unavailable")
         session_id = app.store.create_session()["id"]
         first = app.chat(session_id, {"message": "요즘 5시간 정도 자고 낮에 피곤해. 이 내용을 기억해줘.",
-                        "mode": "codex", "consent": True})
+                        "mode": "codex"})
         assert first["memories"], "No self-reported memory extracted"
         assert any("5시간" in m["quote"] for m in first["memories"])
         second = app.chat(session_id, {"message": "아까 내가 몇 시간 잔다고 했지? 미병이 뭔지도 자료를 찾아 알려줘.",
-                         "mode": "codex", "consent": True})
+                         "mode": "codex"})
         reply = second["messages"][-1]
         assert "5시간" in reply["content"] or "5 시간" in reply["content"], "Prior context not recalled"
         assert reply["sources"], "No actual DB citation returned"

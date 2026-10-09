@@ -40,7 +40,7 @@ class CareTests(unittest.TestCase):
         return (datetime.now(KST) + timedelta(days=delta)).replace(microsecond=0).isoformat()
 
     def prepare(self):
-        self.app.web_search(self.session, {"query": "fixture", "consent": True}, "hospitals")
+        self.app.web_search(self.session, {"query": "fixture"}, "hospitals")
         search = self.care.dashboard(self.session)["searches"][0]
         result = self.care.booking(self.session, {"search_id": search["id"], "hospital_id": "f" * 32,
                                   "start": self.when(), "note": "합성 방문 메모"})
@@ -118,7 +118,7 @@ class CareTests(unittest.TestCase):
         self.assertEqual(self.care.dashboard(self.session)["events"], [])
 
     def test_booking_cannot_use_another_session_search_or_fabricated_hospital(self):
-        self.app.web_search(self.session, {"query": "fixture", "consent": True}, "hospitals")
+        self.app.web_search(self.session, {"query": "fixture"}, "hospitals")
         search_id = self.care.dashboard(self.session)["searches"][0]["id"]
         for session, hospital in [(self.other, "f" * 32), (self.session, "a" * 32)]:
             with self.assertRaises(ValueError):
@@ -157,12 +157,12 @@ class CareTests(unittest.TestCase):
             for table in ("checkins", "goals", "goal_ticks", "events", "bookings", "searches"):
                 self.assertEqual(db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
 
-    def test_search_consent_and_failure_do_not_save_search_results(self):
-        with self.assertRaises(ValueError):
-            self.app.web_search(self.session, {"query": "fixture"}, "hospitals")
+    def test_search_failure_does_not_save_results_and_retry_runs_directly(self):
         with self.assertRaises(ModelError):
-            self.app.web_search(self.session, {"query": "fail", "consent": True}, "hospitals")
+            self.app.web_search(self.session, {"query": "fail"}, "hospitals")
         self.assertEqual(self.care.dashboard(self.session)["searches"], [])
+        result = self.app.web_search(self.session, {"query": "fixture"}, "hospitals")
+        self.assertEqual(len(result["searches"]), 1)
 
     def test_library_filters_and_named_herbs_do_not_leak_unrelated_records(self):
         self.assertGreaterEqual(self.app.store.knowledge_count(), 40)

@@ -1,6 +1,6 @@
 "use strict";
 let currentView="chat", selectedHospital=null, confirmingBooking=null, editingEvent=null, toastTimer=null;
-const careLabels={hospitals:"병원 검색",web:"웹 검색",prepared:"예약 준비",confirmed:"사용자 확인 · 예약 확정",cancelled:"취소 기록"};
+const careLabels={prepared:"예약 준비",confirmed:"사용자 확인 · 예약 확정",cancelled:"취소 기록"};
 function sessionPath(suffix){return `/api/sessions/${state.session.id}/${suffix}`;}
 function button(label,action,className="secondary"){const b=node("button",className,label);b.type="button";b.addEventListener("click",action);return b;}
 function link(label,url,className="external-link"){
@@ -18,7 +18,7 @@ document.querySelectorAll(".app-nav button").forEach(b=>b.addEventListener("clic
 document.querySelectorAll(".close-dialog").forEach(b=>b.addEventListener("click",()=>b.closest("dialog").close()));
 function openAction(action){
   if(state.busy)return;
-  if(action.type==="hospitals"||action.type==="web"){showView(action.type);$(action.type==="hospitals"?"hospital-query":"web-query").value=action.query||"";}
+  if(action.type==="hospitals"||action.type==="web"){showView("chat");$("message").focus();}
   else if(action.type==="event"){showView("calendar");openEvent({title:action.title,start:action.start,note:action.note});}
   else {showView("daily");if(action.type==="goal"){$("goal-title").value=action.title||"";$("goal-title").focus();}else if(action.type==="checkin"){$("checkin-date").value=state.session.care.today;loadCheckin();for(const key of ["sleep","stress","energy","discomfort","activity","caffeine"]){if(action[key])$(`checkin-${key}`).value=action[key];}if(action.note)$("checkin-note").value=action.note;$("checkin-state").textContent="대화에서 정리한 초안이에요. 날짜·수치를 확인한 뒤 저장해 주세요.";$("checkin-sleep").focus();}else $("checkin-note").focus();}
 }
@@ -52,7 +52,7 @@ function renderCare(){
   care.checkins.slice(0,14).forEach(c=>{const row=node("article","record-row");row.append(node("strong","",c.date),node("p","",[`수면 ${c.sleep??"—"}시간`,`스트레스 ${c.stress??"—"}/10`,`활력 ${c.energy??"—"}/10`,`불편감 ${c.discomfort??"—"}/10`,`활동 ${c.activity??"—"}분`,`카페인 ${c.caffeine??"—"}잔`].join(" · ")));if(c.note)row.append(node("p","record-note",c.note));const actions=node("div","row-actions");actions.append(button("수정",()=>{$("checkin-date").value=c.date;loadCheckin();$("checkin-sleep").focus();}),button("삭제",()=>deleteRecord("checkins",c.date),"quiet"));row.append(actions);history.append(row);});
   const memories=$("memory-history");memories.replaceChildren();if(!state.session.memories.length)empty(memories,"대화에서 나의 생활을 알려주면 기록해요.");
   state.session.memories.slice().reverse().forEach(m=>{const row=node("article","record-row");row.append(node("span","badge",categories[m.category]||"기록"),node("p","",m.summary),node("p","memory-origin",`원문: ${m.quote}`),button("이 기억 삭제",()=>deleteRecord("memories",m.id),"quiet"));memories.append(row);});
-  renderSearches(care);renderCalendar(care);
+  renderCalendar(care);
 }
 async function deleteRecord(collection,id){if(state.busy||!window.confirm("이 기록을 삭제할까요?"))return;await runTool(async()=>{const care=await api(sessionPath(`${collection}/${id}`),{method:"DELETE"});if(collection==="memories"){state.session=await api(`/api/sessions/${state.session.id}`);render();}return care;});}
 $("checkin-form").addEventListener("submit",async e=>{e.preventDefault();const body={date:$("checkin-date").value,note:$("checkin-note").value};["sleep","stress","energy","discomfort","activity","caffeine"].forEach(k=>{const v=$(`checkin-${k}`).value;body[k]=v===""?null:Number(v);});await runTool(()=>post("checkins",body));});
@@ -61,19 +61,12 @@ async function loadLibrary(){
   const query=new URLSearchParams({q:$("library-query").value,category:$("library-category").value});
   try{const response=await api("/api/knowledge?"+query);const container=$("library-results");container.replaceChildren();$("library-total").textContent=`검색 ${response.records.length}건 · 전체 ${state.session?.knowledge_count??""}건`;
     if(!response.records.length)empty(container,"이 검색어와 맞는 자료가 없어요. 약재 이름이나 미병·수면·스트레스 등으로 검색해 보세요.");
-    response.records.forEach(r=>{const card=node("article","tool-card library-record");card.append(node("span","badge",{herb:"한약재",concept:"미병·개념",lifestyle:"생활",resource:"정보 포털"}[r.category]),node("h2","",r.title),node("p","",r.body),node("p","search-note",r.publisher),button("출처·적용 범위 보기",()=>openSource(r)));container.append(card);});
+    response.records.forEach(r=>{const card=node("article","tool-card library-record");card.append(node("span","badge",{herb:"한약재",concept:"미병·개념",lifestyle:"생활",resource:"정보 포털",classical:"고문헌 원문"}[r.category]),node("h2","",r.title),node("p","",r.summary||r.body),node("p","search-note",r.location||r.publisher),button("출처·적용 범위 보기",()=>openSource(r)));container.append(card);});
   }catch(error){status(error.message,true);}
 }
 $("library-form").addEventListener("submit",e=>{e.preventDefault();loadLibrary();});
-function ensureWebConsent(){if(state.webConsent)return true;state.webConsent=window.confirm("입력한 검색 조건을 현재 OpenAI 계정의 Luna High와 OpenAI 웹 검색에 전달해요. 검색어에 이름이나 개인 건강 정보를 넣지 않는 것을 권해요. 계속할까요?");return state.webConsent;}
-async function search(kind,query){if(!ensureWebConsent())return;await runTool(()=>post(kind,{query,consent:true}),"Luna High가 웹에서 원문을 확인하고 있어요. 잠시 기다려 주세요…");}
-$("hospital-form").addEventListener("submit",e=>{e.preventDefault();if(!state.busy)search("hospitals",$("hospital-query").value);});
-$("web-form").addEventListener("submit",e=>{e.preventDefault();if(!state.busy)search("web",$("web-query").value);});
-function renderSearches(care){
-  for(const [kind,containerId] of [["hospitals","hospital-results"],["web","web-results"]]){
-    const container=$(containerId);container.replaceChildren();const search=care.searches.find(s=>s.kind===kind);
-    if(!search){empty(container,kind==="hospitals"?"방문할 지역과 조건을 알려 주세요. 실제 검색 결과를 비교할 수 있어요.":"공개 정보를 검색하고 원문을 확인해 보세요.");continue;}
-    const data=search.data;const head=node("div","search-summary");head.append(node("span","badge",data.query),node("p","",data.summary),node("p","search-note",`${data.provider} · 검색 ${formatTime(data.searched_at)}`));container.append(head);
+function renderLookup(container,search){
+    const kind=search.kind,data=search.data;const head=node("div","lookup-heading");head.append(node("span","badge",kind==="hospitals"?"Hanui가 찾은 병원":"Hanui가 찾아본 정보"),node("p","search-note",`확인 ${formatTime(data.searched_at)}`));container.append(head);
     if(kind==="hospitals"){
       const cards=node("div","hospital-grid");data.hospitals.forEach(h=>{const card=node("article","tool-card hospital-card");card.append(node("h2","",h.name),node("p","hospital-address",h.address||"주소 확인 필요"),node("p","",h.reason),link("정보 원문 확인 ↗",h.source_url));
         const reviews=node("div","review-section");reviews.append(node("strong","","공개 자료에서 확인한 후기"));if(!h.reviews.length)reviews.append(node("p","search-note","공개 후기를 확인하지 못했어요. 아래 지도에서 직접 확인할 수 있어요."));
@@ -84,7 +77,6 @@ function renderSearches(care){
     }else{
       data.results.forEach(r=>{const card=node("article","tool-card web-card");card.append(node("h2","",r.title),node("p","",r.summary),node("p","search-note",r.publisher),link("원문 확인 ↗",r.url));container.append(card);});if(!data.results.length)empty(container,"확인 가능한 검색 결과가 없어요.");
     }
-  }
 }
 function openBooking(searchId,hospital){selectedHospital={searchId,hospital};$("booking-title").textContent=hospital.name+" 예약 준비";$("booking-start").value=tomorrowTime();$("booking-note").value="";$("booking-dialog").showModal();}
 $("booking-use-memory").addEventListener("click",()=>{const recent=state.session.memories.slice(-6);$("booking-note").value=recent.map(m=>`${categories[m.category]||"생활기록"}: ${m.quote}`).join("\n").slice(0,1000);});
@@ -96,7 +88,7 @@ function renderCalendar(care){
   const events=$("events-list");events.replaceChildren();if(!care.events.length)empty(events,"생활 일정이나 확정된 방문 일정이 여기에 모여요.");
   if(care.conflicts?.length)events.append(node("p","error",`시간이 겹치는 일정 ${care.conflicts.length}쌍이 있어요. 날짜·시간을 확인해 주세요.`));
   care.events.forEach(event=>{const card=node("article","record-row");card.append(node("span","badge",event.kind==="appointment"?"병원 방문 · 사용자 확인":"나의 일정"),node("h3","",event.title),node("p","",formatTime(event.start)+" ~ "+formatTime(event.end)));if(event.location)card.append(node("p","search-note",event.location));if(event.note)card.append(node("p","record-note",event.note));const actions=node("div","row-actions");actions.append(link("Google Calendar에 추가 ↗",googleEvent(event),"secondary"));if(event.kind!=="appointment")actions.append(button("수정",()=>openEvent(event)),button("삭제",()=>deleteRecord("events",event.id),"quiet"));card.append(actions,node("p","search-note","Google Calendar 링크에는 제목·시간·장소만 전달해요. 저장은 열린 화면에서 완료해요."));events.append(card);});
-  const bookings=$("bookings-list");bookings.replaceChildren();if(!care.bookings.length)empty(bookings,"병원 찾기에서 병원을 선택하고 예약을 준비해요.");
+  const bookings=$("bookings-list");bookings.replaceChildren();if(!care.bookings.length)empty(bookings,"대화에서 방문할 지역을 알려주면 Hanui가 병원을 찾아 예약 준비를 도와요.");
   care.bookings.forEach(b=>{const card=node("article","record-row");card.append(node("span","badge booking-status",careLabels[b.status]),node("h3","",b.hospital.name),node("p","",`${b.status==="prepared"?"희망 시간":"기록된 시간"} · ${formatTime(b.start)}`));if(b.note)card.append(node("p","record-note",b.note));if(b.confirmation)card.append(node("p","search-note",b.confirmation));
     const actions=node("div","row-actions");if(b.status==="prepared"){const phone=b.hospital.phone.replace(/[^+0-9-]/g,"");if(phone){const a=node("a","secondary","병원 전화");a.href="tel:"+phone;actions.append(a);}if(b.hospital.booking_url)actions.append(link("예약 페이지 ↗",b.hospital.booking_url,"secondary"));actions.append(button("병원에서 확정받았어요",()=>openConfirmation(b),"primary"));}
     if(b.status!=="cancelled")actions.append(button("취소 기록",async()=>{if(!window.confirm("실제 예약이 있다면 먼저 병원에서 취소해 주세요. 이 버튼은 로컬 예약 기록과 연결된 일정만 취소합니다. 기록을 취소할까요?"))return;await runTool(()=>post(`bookings/${b.id}`,{status:"cancelled",confirmed_by_user:true}));},"quiet"));card.append(actions);bookings.append(card);});

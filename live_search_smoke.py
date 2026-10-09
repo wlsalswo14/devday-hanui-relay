@@ -17,7 +17,7 @@ def main():
             ("hospitals", "서울 강남역 한의원 공식 위치 전화번호와 공개 후기"),
             ("web", "한국한의약진흥원 국가한의임상정보포털 공식 안내"),
         ]:
-            care = app.web_search(session, {"query": query, "consent": True}, kind)
+            care = app.web_search(session, {"query": query}, kind)
             result = next(s for s in care["searches"] if s["kind"] == kind)["data"]
             rows = result["hospitals"] if kind == "hospitals" else result["results"]
             assert rows, f"No accessible results for {kind}"

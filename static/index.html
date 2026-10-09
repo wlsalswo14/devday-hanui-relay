@@ -16,7 +16,7 @@
     <div class="top-actions"><span class="local-label"><span class="dot"></span> 개인 공간</span><button id="reset" class="quiet">대화·기록 삭제</button></div>
   </header>
   <nav class="app-nav" aria-label="주요 기능">
-    <button data-view="chat" class="active" aria-current="page">대화</button><button data-view="daily">생활 관리</button><button data-view="library">한의학 DB</button><button data-view="hospitals">병원 찾기</button><button data-view="calendar">일정·예약</button><button data-view="web">웹 검색</button>
+    <button data-view="chat" class="active" aria-current="page">대화</button><button data-view="daily">생활 관리</button><button data-view="library">한의학 DB</button><button data-view="calendar">일정·예약</button>
   </nav>
   <main class="workspace">
     <section class="conversation" aria-label="한의학 정보 대화">
@@ -54,24 +54,15 @@
       <form id="library-form" class="search-form"><label class="sr-only" for="library-query">한의학 자료 검색</label><input id="library-query" maxlength="300" placeholder="미병, 감초, 인삼, 스트레스…"><label class="sr-only" for="library-category">자료 종류</label><select id="library-category"><option value="">전체</option><option value="concept">미병·개념</option><option value="lifestyle">생활</option><option value="herb">한약재</option><option value="resource">정보 포털</option></select><button class="primary">검색</button></form>
       <div id="library-results" class="library-grid"></div>
     </section>
-    <section id="hospitals-view" class="tool-view" hidden aria-labelledby="hospitals-title">
-      <div class="view-head"><div><span class="eyebrow">FIND YOUR NEXT STEP</span><h1 id="hospitals-title">나의 조건에 맞는 병원 찾기</h1><p>지역·접근성·운영 정보를 비교해요. 후기는 공개 원문을 확인할 수 있는 경우에만 표시해요.</p></div><span class="badge">Luna High · 웹 검색</span></div>
-      <form id="hospital-form" class="search-form"><label class="sr-only" for="hospital-query">병원 검색 조건</label><input id="hospital-query" maxlength="350" placeholder="강남역 한의원, 역에서 가까운 곳, 야간진료 여부" required><button class="primary">병원 검색</button></form>
-      <p class="search-note">지역과 방문 조건만 입력해요. 진료 역량·치료 효과는 후기만으로 판단하지 않아요.</p><div id="hospital-results"></div>
-    </section>
     <section id="calendar-view" class="tool-view" hidden aria-labelledby="calendar-title">
       <div class="view-head"><div><span class="eyebrow">YOUR TIME, IN ONE PLACE</span><h1 id="calendar-title">일정과 예약 준비</h1><p>전화·예약 페이지에서 확정을 받은 뒤 기록하면 방문 일정이 자동으로 생겨요.</p></div><div class="row-actions"><button id="calendar-export" class="secondary">.ics 내보내기</button><button id="new-event" class="primary">일정 추가</button></div></div>
       <div class="tool-grid"><section class="tool-card"><h2>내 일정</h2><div id="events-list"></div></section><section class="tool-card"><h2>병원 예약 기록</h2><p class="section-caption">예약 준비는 병원에 접수된 상태가 아니에요.</p><div id="bookings-list"></div></section></div>
-    </section>
-    <section id="web-view" class="tool-view" hidden aria-labelledby="web-title">
-      <div class="view-head"><div><span class="eyebrow">LOOK A LITTLE FURTHER</span><h1 id="web-title">궁금한 정보 찾아보기</h1><p>Luna High가 웹에서 찾은 정보와 원문 링크를 함께 보여줘요.</p></div><span class="badge">OpenAI 웹 검색</span></div>
-      <form id="web-form" class="search-form"><label class="sr-only" for="web-query">웹 검색어</label><input id="web-query" maxlength="350" placeholder="한국한의약진흥원 미병 연구 자료" required><button class="primary">웹 검색</button></form><div id="web-results"></div>
     </section>
   </main>
   <div id="tool-status" class="toast" role="status" hidden></div>
   <dialog id="booking-dialog"><div class="dialog-top"><span class="eyebrow">BOOKING PREPARATION</span><button type="button" class="quiet close-dialog">닫기 ×</button></div><h2 id="booking-title">예약 준비</h2><p class="section-caption">희망 시간을 저장한 뒤 병원 전화·예약 링크로 접수해요.</p><form id="booking-form" class="fields"><label>방문 희망 일시<input id="booking-start" type="datetime-local" required></label><label>방문 전 전달할 메모<textarea id="booking-note" rows="4" maxlength="1000"></textarea></label><button type="button" id="booking-use-memory" class="secondary">내 생활기록으로 메모 초안 만들기</button><button class="primary">예약 준비 저장</button></form></dialog>
   <dialog id="confirm-dialog"><div class="dialog-top"><span class="eyebrow">EXTERNAL CONFIRMATION</span><button type="button" class="quiet close-dialog">닫기 ×</button></div><h2>병원에서 확정받았나요?</h2><p class="section-caption">이 앱은 병원에 예약을 보내지 않아요. 전화·예약 페이지에서 받은 확정 내용을 남겨 주세요.</p><form id="confirm-form" class="fields"><label>예약 확인 내용<input id="booking-confirmation" required maxlength="300" placeholder="예: 병원 통화로 10월 12일 14시 확정"></label><label class="check-label"><input id="booking-confirmed" type="checkbox" required> 병원에서 이 날짜·시간으로 확정을 받았어요</label><button class="primary">확정 기록·일정 생성</button></form></dialog>
   <dialog id="event-dialog"><div class="dialog-top"><span class="eyebrow">CALENDAR DRAFT</span><button type="button" class="quiet close-dialog">닫기 ×</button></div><h2>나의 일정</h2><form id="event-form" class="fields"><label>제목<input id="event-title" maxlength="160" required placeholder="저녁 산책"></label><div class="field-grid"><label>시작<input id="event-start" type="datetime-local" required></label><label>종료<input id="event-end" type="datetime-local" required></label></div><label>장소<input id="event-location" maxlength="300"></label><label>메모<textarea id="event-note" maxlength="1000" rows="3"></textarea></label><button class="primary">일정 저장</button></form></dialog>
-  <dialog id="source-dialog"><div class="dialog-top"><span class="eyebrow">SOURCE NOTES</span><button id="close-source" class="quiet" aria-label="자료 닫기">닫기 ×</button></div><h2 id="source-title"></h2><p id="source-meta" class="source-meta"></p><p id="source-body" class="source-body"></p><div class="source-scope"><strong>이 자료의 범위</strong><p id="source-limit"></p></div><a id="source-link" target="_blank" rel="noopener noreferrer" class="source-link">원문 확인하기 ↗</a></dialog>
+  <dialog id="source-dialog"><div class="dialog-top"><span class="eyebrow">SOURCE NOTES</span><button id="close-source" class="quiet" aria-label="자료 닫기">닫기 ×</button></div><h2 id="source-title"></h2><p id="source-meta" class="source-meta"></p><p id="source-location" class="source-meta"></p><p id="source-body" class="source-body"></p><p id="source-reading" class="source-body"></p><div class="source-scope"><strong>이 자료의 범위</strong><p id="source-limit"></p></div><a id="source-link" target="_blank" rel="noopener noreferrer" class="source-link">원문 확인하기 ↗</a></dialog>
 </body>
 </html>

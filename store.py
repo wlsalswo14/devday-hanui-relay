@@ -58,10 +58,19 @@ class Store:
     def refresh_knowledge(self):
         if not self.seed.exists():
             return
-        mtime = self.seed.stat().st_mtime_ns
+        seeds = [self.seed]
+        classics = self.seed.parent / "classics.seed.json"
+        if self.seed.name == "knowledge.seed.json" and classics.exists():
+            seeds.append(classics)
+        mtime = tuple((str(p), p.stat().st_mtime_ns) for p in seeds)
         if mtime == self.seed_mtime:
             return
-        records = json.loads(self.seed.read_text(encoding="utf-8-sig"))
+        records = []
+        for seed in seeds:
+            loaded = json.loads(seed.read_text(encoding="utf-8-sig"))
+            if not isinstance(loaded, list):
+                raise ValueError("Knowledge seed must be a list")
+            records.extend(loaded)
         required = {"id", "title", "category", "tags", "body", "source_url", "publisher",
                     "evidence_level", "limitations", "retrieved_at"}
         if not isinstance(records, list) or len(records) > 1000:
@@ -74,17 +83,28 @@ class Store:
                 raise ValueError("Knowledge metadata must contain non-empty strings")
             if not isinstance(record["tags"], list) or any(not isinstance(t, str) for t in record["tags"]):
                 raise ValueError("Knowledge tags must be strings")
-            if record["category"] not in {"concept", "lifestyle", "herb", "resource"}:
+            if record["category"] not in {"concept", "lifestyle", "herb", "resource", "classical"}:
                 raise ValueError("Unsupported knowledge category")
             if urlparse(record["source_url"]).scheme not in {"http", "https"}:
                 raise ValueError("Invalid source URL")
             if record["id"] in seen:
                 raise ValueError("Duplicate knowledge ID")
             seen.add(record["id"])
+            if record["category"] == "classical" and any(
+                not isinstance(record.get(k), str) or not record[k].strip()
+                for k in ("book", "section", "location", "source_revision", "license")
+            ):
+                raise ValueError("Classical text requires exact location and attribution")
         with self.connect() as db:
             db.execute("DELETE FROM knowledge")
             db.executemany("INSERT INTO knowledge VALUES (?,?)", [
                 (r["id"], json.dumps(r, ensure_ascii=False)) for r in records
+            ])
+            db.execute("CREATE TABLE IF NOT EXISTS knowledge_text (id TEXT PRIMARY KEY REFERENCES knowledge(id) ON DELETE CASCADE, text TEXT NOT NULL)")
+            db.execute("DELETE FROM knowledge_text")
+            db.executemany("INSERT INTO knowledge_text VALUES (?,?)", [
+                (r["id"], " ".join([r["title"], r["body"], r.get("summary", ""), r.get("book", ""), r.get("section", ""), " ".join(r["tags"])]).lower())
+                for r in records
             ])
         self.seed_mtime = mtime
 
@@ -118,15 +138,45 @@ class Store:
         return [r for _, r in ranked[:limit]]
 
     def library(self, query="", category=""):
-        if category and category not in {"concept", "lifestyle", "herb", "resource"}:
+        if category and category not in {"concept", "lifestyle", "herb", "resource", "classical"}:
             raise ValueError("자료 종류를 확인해 주세요.")
         self.refresh_knowledge()
         if query:
-            records = self.search(query, 1000)
+            records = self.search_fulltext([query], 1000)
         else:
             with self.connect() as db:
                 records = [json.loads(r[0]) for r in db.execute("SELECT record FROM knowledge ORDER BY id")]
         return [r for r in records if not category or r["category"] == category]
+
+    def search_fulltext(self, keywords, limit=8):
+        """Search every stored passage, including original text and Korean readings.
+
+        Parameterized substring matching preserves Korean/Chinese phrases without
+        an external tokenizer; ranking and corpus diversity bound the model context.
+        """
+        self.refresh_knowledge()
+        terms = list(dict.fromkeys(t.strip().lower() for t in keywords
+                                  if isinstance(t, str) and 1 < len(t.strip()) <= 80))[:12]
+        if not terms:
+            return []
+        clauses = " OR ".join("instr(t.text, ?) > 0" for _ in terms)
+        with self.connect() as db:
+            rows = db.execute("SELECT k.record,t.text FROM knowledge k JOIN knowledge_text t ON k.id=t.id WHERE " + clauses, terms).fetchall()
+        ranked = []
+        for row in rows:
+            record = json.loads(row["record"])
+            score = sum(1 for term in terms if term in row["text"])
+            score += sum(3 for term in terms if term in record["title"].lower() or term in " ".join(record["tags"]).lower())
+            ranked.append((score, record))
+        ranked.sort(key=lambda item: (-item[0], item[1]["id"]))
+        selected = [r for _, r in ranked[:limit]]
+        # Include both historical and modern evidence when either corpus matches.
+        if limit >= 2:
+            for classical in (True, False):
+                candidates = [r for _, r in ranked if (r["category"] == "classical") == classical]
+                if candidates and not any((r["category"] == "classical") == classical for r in selected):
+                    selected[-1] = candidates[0]
+        return selected
 
     def create_session(self):
         session_id = uuid.uuid4().hex

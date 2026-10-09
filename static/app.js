@@ -48,11 +48,12 @@ function render(){
   const messages=$("messages");messages.replaceChildren();
   if(!state.session.messages.length)messages.append(welcome());
   state.session.messages.forEach(message=>{
-    const article=node("article",`message ${message.role}`);const label=node("div","message-label");
+    const article=node("article",`message ${message.role}`);article.id="message-"+message.id;const label=node("div","message-label");
     if(message.role==="assistant")label.append(node("span","mini-mark","h."));
     label.append(node("span","",message.role==="user"?"나":message.mode==="codex"?"Hanui · Luna High":"Hanui · 샘플 대화"));article.append(label,node("div","bubble",message.content));
     if(message.sources?.length){const citations=node("div","citations");message.sources.forEach((record,i)=>{if(record.citations?.length){const passage=node("div","quoted-passage");passage.append(node("span","source-kind",record.category==="classical"?"고문헌 원문":"현대 DB 자료"));record.citations.forEach(c=>{passage.append(node("blockquote","",c.quote),node("p","quote-location",`${record.location||record.title} · 본문 ${c.offset_start+1}–${c.offset_end}자`));});const detail=node("button","citation",`${record.book||record.publisher} · ${record.section||record.title} ↗`);detail.type="button";detail.addEventListener("click",()=>openSource(record));passage.append(detail);article.append(passage);}const button=node("button","citation",`${i+1} · ${record.title}`);button.type="button";button.addEventListener("click",()=>openSource(record));citations.append(button);});article.append(citations);}
     if(message.actions?.length){const actions=node("div","message-actions");message.actions.forEach(action=>{if(action.type==="hospitals"||action.type==="web"){if(action.completed){const found=action.result?{id:action.search_id,kind:action.type,data:action.result}:state.session.care.searches.find(s=>s.id===action.search_id||(!action.search_id&&s.kind===action.type));if(found)renderLookup(actions,found);}if(action.error)actions.append(node("p","search-note",action.error));return;}const button=node("button","secondary action-button",action.label||"다음 단계 보기");button.type="button";button.addEventListener("click",()=>openAction(action));actions.append(button);});article.append(actions);}
+    if(message.patient_evidence?.length&&typeof patientReference==="function")article.append(patientReference(message.patient_evidence,"기록 근거 · 발언 원문"));
     messages.append(article);
   });
   const memories=$("memories");memories.replaceChildren();$("memory-count").textContent=String(state.session.memories.length);
@@ -88,9 +89,10 @@ async function init(){
   busy(true);try{
     state.config=await api("/api/config");const option=$("mode").querySelector('option[value="codex"]');option.disabled=!state.config.codex_enabled;
     if(!state.config.codex_enabled){state.mode="demo";$("mode").value="demo";}setModeDescription();
-    const id=savedId();if(id){try{state.session=await api(`/api/sessions/${id}`);}catch(error){if(error.status!==404)throw error;}}
+    const shared=new URLSearchParams(location.search).get("session");const id=/^[a-f0-9]{32}$/.test(shared||"")?shared:savedId();if(id){try{state.session=await api(`/api/sessions/${id}`);}catch(error){if(error.status!==404)throw error;}}
     await refreshSessions();
     if(!state.session)state.session=state.sessions.length?await api(`/api/sessions/${state.sessions[0].id}`):await api("/api/sessions",{method:"POST",body:"{}"});saveId(state.session.id);render();await refreshSessions();
+    const target=new URLSearchParams(location.search).get("message");if(/^[a-f0-9]{32}$/.test(target||"")){const el=document.getElementById("message-"+target);if(el){el.scrollIntoView({block:"center"});el.classList.add("evidence-highlight");}}
   }catch(error){showError(error.message);}finally{busy(false);}
 }
 init();

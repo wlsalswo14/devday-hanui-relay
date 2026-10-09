@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 from care import CareStore
+from guidance import GuidanceStore
 
 
 def now() -> str:
@@ -46,6 +47,7 @@ class Store:
             if "title" not in {r[1] for r in db.execute("PRAGMA table_info(sessions)")}:
                 db.execute("ALTER TABLE sessions ADD COLUMN title TEXT NOT NULL DEFAULT ''")
         self.care = CareStore(self)
+        self.guidance = GuidanceStore(self)
         self.refresh_knowledge()
 
     @contextmanager
@@ -229,23 +231,29 @@ class Store:
             message["sources"] = json.loads(message["sources"])
             message["actions"] = json.loads(message["actions"])
         first_message = next((m["content"] for m in messages if m["role"] == "user"), "새 대화")
+        care = self.care.dashboard(session_id)
+        previous_user = None
+        for message in messages:
+            if message["role"] == "user": previous_user = message["id"]
+            else: message["patient_evidence"] = [o for o in care["guidance"]["observations"] if o["message_id"] == previous_user]
         return {"id": session_id, "title": session["title"] or first_message.replace("\n", " ")[:40], "messages": messages, "memories": memories,
-                "knowledge_count": self.knowledge_count(), "care": self.care.dashboard(session_id)}
+                "knowledge_count": self.knowledge_count(), "care": care}
 
-    def save_turn(self, session_id, message, reply, sources, memories, mode, actions=None):
+    def save_turn(self, session_id, message, reply, sources, memories, mode, actions=None, observations=None):
         user_id = uuid.uuid4().hex
         timestamp = now()
         with self.connect() as db:
             if not db.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone():
                 raise KeyError(session_id)
-            for item_id, role, content, citations in [
-                (user_id, "user", message, []),
-                (uuid.uuid4().hex, "assistant", reply, sources),
-            ]:
-                db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at,actions) VALUES (?,?,?,?,?,?,?,?)",
-                           (item_id, session_id, role, content, mode,
-                            json.dumps(citations, ensure_ascii=False), timestamp,
-                            json.dumps(actions or [] if role == "assistant" else [], ensure_ascii=False)))
+            db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at,actions) VALUES (?,?,?,?,?,?,?,?)",
+                       (user_id,session_id,"user",message,mode,"[]",timestamp,"[]"))
+            observation_ids = self.guidance.record(session_id,user_id,observations or [])
+            if observation_ids:
+                coaching = self.guidance.coach(session_id,observation_ids)
+                if coaching:
+                    reply = reply+"\n\n"+coaching if sources or actions else coaching
+            db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at,actions) VALUES (?,?,?,?,?,?,?,?)",
+                       (uuid.uuid4().hex,session_id,"assistant",reply,mode,json.dumps(sources,ensure_ascii=False),timestamp,json.dumps(actions or [],ensure_ascii=False)))
             for memory in memories:
                 db.execute("INSERT OR IGNORE INTO memories(id,session_id,category,summary,quote,message_id,created_at) VALUES (?,?,?,?,?,?,?)",
                            (uuid.uuid4().hex, session_id, memory["category"], memory["summary"],

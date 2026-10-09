@@ -12,7 +12,10 @@ function showView(view){
   currentView=view;document.querySelector(".conversation").hidden=view!=="chat";document.querySelector(".context").hidden=view!=="chat";
   document.querySelectorAll(".tool-view").forEach(p=>p.hidden=p.id!==`${view}-view`);
   document.querySelectorAll(".app-nav button").forEach(b=>{const selected=b.dataset.view===view;b.classList.toggle("active",selected);if(selected)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
+  const nav=document.querySelector(".app-nav"),active=nav.querySelector(".active");
+  if(active&&nav.scrollWidth>nav.clientWidth)nav.scrollTo({left:active.offsetLeft-nav.offsetLeft-(nav.clientWidth-active.clientWidth)/2,behavior:"instant"});
   if(view==="library"&&!$("library-results").children.length)loadLibrary();
+  if(view==="report"&&typeof loadReport==="function")loadReport();
   syncSidebar();
 }
 document.querySelectorAll(".app-nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
@@ -22,6 +25,7 @@ function openAction(action){
   if(action.type==="hospitals"||action.type==="web"){showView("chat");$("message").focus();}
   else if(action.type==="calendar"||action.type==="booking"||action.completed){showView("calendar");if(action.start&&typeof focusCalendarDate==="function")focusCalendarDate(action.start);}
   else if(action.type==="event"){showView("calendar");openEvent({title:action.title,start:action.start,note:action.note});}
+  else if(action.type==="records"&&/리포트/.test(action.label)){showView("report");}
   else {showView("daily");if(action.type==="goal"){$("goal-title").value=action.title||"";$("goal-title").focus();}else if(action.type==="checkin"){$("checkin-date").value=state.session.care.today;loadCheckin();for(const key of ["sleep","stress","energy","discomfort","activity","caffeine"]){if(action[key])$(`checkin-${key}`).value=action[key];}if(action.note)$("checkin-note").value=action.note;$("checkin-state").textContent="대화에서 정리한 초안이에요. 날짜·수치를 확인한 뒤 저장해 주세요.";$("checkin-sleep").focus();}else $("checkin-note").focus();}
 }
 async function runTool(task,message="저장하고 있어요…"){
@@ -43,11 +47,12 @@ function loadCheckin(){
 $("checkin-date").addEventListener("change",loadCheckin);
 function renderCare(){
   const care=state.session?.care;if(!care)return;
+  if(typeof renderGuidance==="function")renderGuidance(care);
   $("checkin-date").max=care.today;if(!$("checkin-date").value)$("checkin-date").value=care.today;loadCheckin();
   const summary=$("daily-summary");summary.replaceChildren();
   [["최근 7일 기록",care.summary.days,"일"],["평균 수면",care.summary.averages.sleep,"시간"],["평균 스트레스",care.summary.averages.stress,"/ 10"],["평균 활동",care.summary.averages.activity,"분"]].forEach(([label,value,unit])=>{const card=node("div","stat-card");card.append(node("span","stat-label",label),node("strong","",value===null?"—":String(value)),node("span","stat-unit",value===null?"아직 기록이 없어요":unit));summary.append(card);});
   const goals=$("goals-list");goals.replaceChildren();if(!care.goals.length)empty(goals,"작은 목표 하나부터 시작해요.");
-  care.goals.forEach(goal=>{const row=node("article","goal-row");const label=node("label","check-label");const check=document.createElement("input");check.type="checkbox";check.checked=goal.completed_dates.includes(care.today);check.setAttribute("aria-label",goal.title+" 오늘 완료");check.addEventListener("change",()=>{const done=check.checked;runTool(()=>post(`goals/${goal.id}`,{done})).then(r=>{if(!r)check.checked=!done;});});label.append(check,node("span","",goal.title));row.append(label,node("span","memory-origin",`누적 ${goal.completed_dates.length}일 실천`),button("삭제",()=>deleteRecord("goals",goal.id),"quiet"));goals.append(row);});
+  care.goals.forEach(goal=>{if(goal.guidance){renderClinicianGoal(goals,goal);return;}const row=node("article","goal-row");const label=node("label","check-label");const check=document.createElement("input");check.type="checkbox";check.checked=goal.completed_dates.includes(care.today);check.setAttribute("aria-label",goal.title+" 오늘 완료");check.addEventListener("change",()=>{const done=check.checked;runTool(()=>post(`goals/${goal.id}`,{done})).then(r=>{if(!r)check.checked=!done;});});label.append(check,node("span","",goal.title));row.append(label,node("span","memory-origin",`누적 ${goal.completed_dates.length}일 실천`),button("삭제",()=>deleteRecord("goals",goal.id),"quiet"));goals.append(row);});
   const chart=$("sleep-chart");chart.replaceChildren();
   for(let ago=6;ago>=0;ago--){const d=new Date(care.today+"T12:00:00+09:00");d.setDate(d.getDate()-ago);const date=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;const found=care.checkins.find(c=>c.date===date);const hours=found?.sleep??null;const column=node("div","chart-column");column.append(node("span","chart-value",hours===null?"—":`${hours}h`));const track=node("div","chart-track");const bar=node("div","chart-bar"+(hours===null?" missing":""));bar.style.height=`${hours===null?3:Math.min(hours/12*100,100)}%`;track.append(bar);column.append(track,node("span","chart-date",date.slice(5)));chart.append(column);}
   const history=$("checkin-history");history.replaceChildren();if(!care.checkins.length)empty(history,"오늘의 기록이 쌓이면 흐름을 확인할 수 있어요.");

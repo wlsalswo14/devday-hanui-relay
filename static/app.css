@@ -382,3 +382,98 @@ dialog h2 { margin: 20px 0 12px; font-size: 25px; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Clinician instructions, verified patient remarks and a compact visit report. */
+.guidance-card-head { display: flex; justify-content: space-between; align-items: start; gap: 20px; }
+.guidance-card-head .section-caption { margin-bottom: 0; }
+.guidance-card-head > button { flex-shrink: 0; }
+.guidance-overview { margin-top: 20px; }
+.guidance-overview .empty-note { margin-bottom: 0; }
+.clinician-goal { padding: 18px 0; border-bottom: 1px solid var(--border); }
+.clinician-goal h3 { margin-top: 10px; }
+.clinician-goal .row-actions { gap: 6px; }
+.clinician-goal .row-actions button { font-size: 13px; }
+.guidance-side-item { margin-bottom: 10px; }
+#sidebar-report { width: 100%; margin-top: 12px; }
+.patient-recent-records { border-top: 1px solid var(--border); }
+.patient-recent-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.patient-reference { display: inline-block; color: var(--green); font-size: 13px; font-weight: 550; text-underline-offset: 3px; white-space: nowrap; }
+.patient-evidence-card { padding: 18px 0; border-top: 1px solid var(--border); }
+.patient-evidence-card h3 { font-size: 17px; }
+.patient-quote { padding: 16px; margin: 16px 0; border-left: 3px solid var(--green); border-radius: 4px 8px 8px 4px; background: var(--accent-soft); font-size: 16px; line-height: 1.85; white-space: pre-wrap; overflow-wrap: anywhere; }
+.patient-full-message summary { cursor: pointer; color: var(--muted); font-size: 14px; }
+mark { background: #d5e8dc; color: #202824; }
+.evidence-highlight { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); border-radius: 8px; }
+.report-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+.report-controls label { color: var(--muted); font-size: 14px; }
+.report-controls input { min-height: 44px; border: 1px solid #bdc9c1; border-radius: 8px; padding: 8px 12px; background: white; color: #202824; font-size: 15px; }
+.report-sheet { width: 100%; max-width: 1080px; padding: 36px; margin: 20px auto; background: white; border: 1px solid var(--border); border-radius: 12px; }
+.report-sheet:empty { display: none; }
+.report-header { display: flex; flex-direction: column; gap: 8px; padding-bottom: 16px; border-bottom: 2px solid var(--green); }
+.report-header h2 { margin: 0; font-size: 25px; }
+.report-header p { margin: 0; }
+.report-coverage { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 16px 0; color: var(--muted); font-size: 14px; }
+.report-coverage strong { color: #202824; font-size: 16px; }
+.report-section { margin-top: 20px; }
+.report-section > h3 { margin: 0 0 16px; font-size: 18px; color: var(--green); }
+.report-instruction { padding: 12px 0; border-top: 1px solid var(--border); }
+.instruction-name { display: block; padding: 0; background: none; border: 0; color: #202824; font-size: 16px; font-weight: 650; line-height: 1.7; text-align: left; }
+.instruction-name:hover { color: var(--green); text-decoration: underline; text-underline-offset: 4px; }
+.report-claim { margin: 6px 0 0; font-size: 14px; line-height: 1.85; }
+.report-matrix { overflow-x: auto; margin-top: 16px; border: 1px solid var(--border); border-radius: 8px; }
+.adherence-table { width: 100%; min-width: 650px; border-collapse: collapse; font-size: 12px; }
+.adherence-table th { padding: 9px 6px; font-weight: 550; color: var(--muted); }
+.adherence-table thead { background: var(--subtle); }
+.adherence-table tbody tr { border-top: 1px solid var(--border); }
+.adherence-table th:first-child { width: 210px; text-align: left; padding-left: 12px; }
+.adherence-table td { padding: 3px 0; text-align: center; }
+.day-status { min-width: 27px; min-height: 34px; padding: 3px; border: 0; border-radius: 5px; background: white; color: var(--muted); font-size: 16px; }
+.day-status.met { color: var(--green); background: var(--accent-soft); }
+.day-status.unmet { color: #803f22; background: #fff4ec; }
+.day-status.conflict { color: #765725; background: #f5eddc; }
+.day-status:hover { box-shadow: inset 0 0 0 1px var(--green); }
+.report-legend, .report-method { color: var(--muted); font-size: 12px; line-height: 1.8; margin: 8px 0 0; }
+.report-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.report-trend { margin: 8px 0; font-size: 14px; line-height: 1.8; }
+.report-patient-note { padding: 10px 12px; margin: 10px 0; background: var(--subtle); border-radius: 6px; font-size: 14px; line-height: 1.85; }
+.report-footer { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; line-height: 1.8; }
+@media (max-width: 700px) {
+  .app-nav { overflow-x: auto; scrollbar-width: none; }
+  .app-nav button { flex: 0 0 auto; padding: 10px 12px; }
+  .guidance-card-head { flex-direction: column; gap: 14px; }
+  .patient-recent-row { align-items: start; }
+  .report-sheet { padding: 20px 16px; }
+  .report-detail-grid { grid-template-columns: 1fr; gap: 0; }
+  .report-header h2 { font-size: 22px; }
+  .report-controls input { font-size: 16px; }
+  .report-coverage { gap: 10px; }
+}
+@page { size: A4 portrait; margin: 12mm; }
+@media print {
+  html, body { background: white; margin: 0; font-size: 11px; }
+  body > :not(.workspace), .workspace > :not(#report-view), #report-view > :not(#report-sheet) { display: none !important; }
+  .workspace, #report-view { display: block !important; max-width: none; margin: 0; padding: 0; }
+  #report-sheet { display: block !important; max-width: none; width: 100%; margin: 0; padding: 0; border: 0; border-radius: 0; }
+  .report-sheet { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .report-header { gap: 4px; padding-bottom: 8px; }
+  .report-header h2 { font-size: 20px; }
+  .report-header .search-note, .report-header .eyebrow { font-size: 10px; }
+  .report-coverage { padding: 8px 0; gap: 12px; font-size: 11px; }
+  .report-coverage strong { font-size: 12px; }
+  .report-section { margin-top: 12px; }
+  .report-section > h3 { margin-bottom: 8px; font-size: 13px; }
+  .report-instruction { padding: 6px 0; break-inside: avoid; }
+  .instruction-name { font-size: 12px; }
+  .report-instruction > .search-note { font-size: 9px; }
+  .report-claim, .report-trend, .report-patient-note { font-size: 10px; line-height: 1.6; margin: 4px 0; }
+  .patient-reference { font-size: 9px; }
+  .report-matrix { overflow: visible; margin-top: 8px; }
+  .adherence-table { min-width: 0; font-size: 9px; }
+  .adherence-table th { padding: 4px 2px; }
+  .adherence-table th:first-child { width: 160px; }
+  .day-status { min-width: 18px; min-height: 22px; font-size: 11px; }
+  .report-legend, .report-method, .report-footer { font-size: 9px; line-height: 1.6; }
+  .report-detail-grid { grid-template-columns: 1fr 1fr; gap: 18px; }
+  .report-patient-note { padding: 6px 8px; }
+  .report-footer { margin-top: 12px; padding-top: 8px; }
+}

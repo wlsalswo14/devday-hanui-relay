@@ -98,6 +98,8 @@ class App:
                 return self.care.checkin(session_id, body)
             if kind == "goals":
                 return self.care.tick(session_id, item, body) if item else self.care.goal(session_id, body)
+            if kind == "guidance" and not item:
+                return self.store.guidance.create(session_id, body)
             if kind == "events":
                 return self.care.event(session_id, body, item)
             if kind == "bookings":
@@ -203,9 +205,12 @@ class App:
                 self.model.care_context = {key: care[key] for key in ("today", "summary", "goals", "events", "bookings", "conflicts")}
                 self.model.care_context["checkins"] = care["checkins"][:7]
                 self.model.care_context["public_searches"] = care["searches"]
+                self.model.care_context["clinician_instructions"] = [i for i in care["guidance"]["instructions"] if i["active"]]
+                self.model.care_context["patient_observations"] = care["guidance"]["observations"][-20:]
             responder = self.model.respond if mode == "codex" else demo_response
             result = responder(message.strip(), session["messages"], session["memories"], sources)
             actions = result.get("actions", [])
+            observations = self.store.guidance.validate(session_id, message.strip(), result.get("observations", []))
             # Luna selects read-only information tasks from the conversation.
             # Calendar writes run after information lookup and are saved with the chat turn.
             if mode == "codex" and hasattr(self.model, "search_web"):
@@ -242,7 +247,7 @@ class App:
                     else:
                         result["reply"] = "\n\n".join(outcomes)
                 return self.store.save_turn(session_id, message.strip(), result["reply"], citations,
-                                            result["memories"], mode, actions)
+                                            result["memories"], mode, actions, observations)
         finally:
             self.lock.release()
 
@@ -289,6 +294,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, {"records": self.app.store.library(query.get("q", [""])[0][:300], query.get("category", [""])[0])})
             except ValueError as exc:
                 return self.respond(400, {"error": str(exc)})
+        report = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/visit-report", path)
+        if report:
+            try:
+                query = parse_qs(urlparse(self.path).query)
+                return self.respond(200, self.app.store.guidance.report(report[1], query.get("end", [None])[0]))
+            except KeyError:
+                return self.respond(404, {"error": "대화를 찾지 못했어요."})
+            except ValueError as exc:
+                return self.respond(400, {"error": str(exc)})
         match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(care|calendar\.ics|export)", path)
         if match:
             try:
@@ -303,7 +317,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, self.app.store.get_session(match[1]))
             except KeyError:
                 return self.respond(404, {"error": "대화를 찾지 못했어요."})
-        files = {"/": "index.html", "/app.css": "app.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/favicon.svg": "favicon.svg"}
+        files = {"/": "index.html", "/app.css": "app.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/guidance.js": "guidance.js", "/favicon.svg": "favicon.svg"}
         if path in files:
             file = ROOT / "static" / files[path]
             if file.exists():
@@ -344,7 +358,7 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/chat", path)
             if match:
                 return self.respond(200, self.app.chat(match[1], body))
-            match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(checkins|goals|events|bookings|hospitals|web)(?:/([a-f0-9]{32}))?", path)
+            match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(checkins|goals|events|bookings|hospitals|web|guidance)(?:/([a-f0-9]{32}))?", path)
             if match:
                 session_id, kind, item = match.groups()
                 if kind in {"hospitals", "web"} and not item:
@@ -363,7 +377,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         if not self.validate_origin():
             return self.respond(403, {"error": "이 주소에서 요청할 수 없어요."})
-        child = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(goals|events|memories|checkins)/([a-f0-9]{32}|\d{4}-\d{2}-\d{2})", urlparse(self.path).path)
+        child = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(goals|events|memories|checkins|patient-records)/([a-f0-9]{32}|\d{4}-\d{2}-\d{2})", urlparse(self.path).path)
         if child:
             try:
                 if not self.app.lock.acquire(blocking=False):

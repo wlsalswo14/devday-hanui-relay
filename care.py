@@ -125,12 +125,15 @@ class CareStore:
         for row in searches:
             row["data"] = json.loads(row["data"])
         events = sorted(events, key=lambda e: e["start"])
+        guidance = self.store.guidance.dashboard(session)
+        for goal in goals:
+            goal["guidance"] = next((i for i in guidance["instructions"] if i["goal_id"] == goal["id"]), None)
         conflicts = [{"first": a["id"], "second": b["id"]} for i, a in enumerate(events)
                      for b in events[i+1:] if a["start"] < b["end"] and b["start"] < a["end"]]
         return {"today": today(), "checkins": checks, "goals": goals,
                 "events": events, "conflicts": conflicts,
                 "bookings": bookings[::-1], "searches": searches,
-                "summary": self.summary(checks)}
+                "summary": self.summary(checks), "guidance": guidance}
 
     @staticmethod
     def summary(checks):
@@ -288,6 +291,7 @@ class CareStore:
         return self.dashboard(session)
 
     def delete(self, session, collection, item):
+        if collection == "patient-records":return self.store.guidance.exclude(session,item)
         # Table names are selected from a fixed allowlist, never supplied as SQL.
         if collection not in {"goals", "events", "memories", "checkins"}:
             raise ValueError("삭제할 기록을 확인해 주세요.")
@@ -298,6 +302,8 @@ class CareStore:
                 row = db.execute("SELECT data FROM events WHERE id=? AND session_id=?", (item, session)).fetchone()
                 if row and json.loads(row[0])["kind"] == "appointment":
                     raise ValueError("병원 예약은 예약 상태에서 취소해 주세요.")
+            if collection == "goals":
+                db.execute("UPDATE guidance_instructions SET active=0,ended_on=? WHERE goal_id=? AND session_id=?", (today(),item,session))
             if not db.execute(f"DELETE FROM {collection} WHERE {column}=? AND session_id=?", (item, session)).rowcount:
                 raise KeyError(item)
         return self.dashboard(session)

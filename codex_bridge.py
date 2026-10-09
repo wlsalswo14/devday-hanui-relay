@@ -122,6 +122,43 @@ SCHEMA["properties"]["citations"] = {"type": "array", "items": {
     "type": "object", "properties": {"source_id": {"type": "string"}, "quote": {"type": "string"}},
     "required": ["source_id", "quote"], "additionalProperties": False}}
 SCHEMA["required"].append("citations")
+SCHEMA["properties"]["observations"] = {"type": "array", "maxItems": 8, "items": {
+    "type": "object", "properties": {
+        "metric": {"type": "string", "enum": ["bedtime", "sleep_hours", "caffeine_cups", "walk_after_lunch_minutes", "activity_minutes", "diet_note", "symptom", "adherence"]},
+        **{k: {"type": "string"} for k in ("date", "quote", "value", "instruction_id")}},
+    "required": ["metric", "date", "quote", "value", "instruction_id"], "additionalProperties": False}}
+SCHEMA["required"].append("observations")
+SYSTEM += """
+Clinician-entered lifestyle instructions are in CARE_CONTEXT.clinician_instructions. They are
+stored goals with their exact entered original and objective comparison rule. Do not invent or
+change a clinician's treatment. Use these lifestyle instructions as the user's coaching goals.
+Extract observations ONLY from explicit CURRENT self-reported completed actions/discomfort,
+never questions, future plans, hypothetical/third-person statements or habitual vague dates.
+Return observations=[] when no such report. Extract even when a goal does not exist, to build
+a grounded visit report. Each quote MUST be an EXACT contiguous current-message substring,
+including the day expression and enough words to establish the quantity/action and its scope.
+date is YYYY-MM-DD in KST: today/undated explicit current report=utterance day, 어제/어젯밤
+is previous day, 그제 is two days ago. Never convert 요즘/평소/지난주 into one day.
+Metric bedtime requires an explicit clock time and completed sleep; value='HH:MM' (24h).
+새벽 1시=01:00, 밤 11시=23:00. An unqualified 1시 is ambiguous: ask, no bedtime observation.
+sleep_hours requires explicit hours slept; caffeine_cups requires explicit coffee cups (한=1,
+두=2; explicitly no coffee=0); activity_minutes requires completed minutes of activity.
+walk_after_lunch_minutes requires BOTH explicit lunch-after context and completed minutes,
+not generic exercise. Use numeric strings as values, not invented scores. Keep instruction_id=''
+for measured metrics; the server matches the actual comparison rule. diet_note and symptom
+are exact patient remarks, value='', instruction_id=''. Prefer separate scoped clauses for
+multiple dates. Include meal comments even when also logging lunch-after walking, if relevant.
+For qualitative instructions (rule.operator=self_report), adherence is allowed only when the
+user explicitly reports practicing THAT instruction (e.g. '오늘 찬 음식 줄였어'), or inability
+to practice it. value='done'/'not_done', instruction_id must be the specific provided ID.
+Never infer adherence from '아이스크림 먹었어' to '찬 음식 줄이기': reduction has no numeric
+threshold. A general '지침 지켰어' cannot identify an item when multiple instructions exist.
+Two differing quantities on one day are treated as conflicting, not silently overwritten.
+The server verifies observation quotes/date/quantity and appends actual recording/coaching.
+Keep your preliminary reply short; do not claim records have already been saved. No need to
+propose a duplicate checkin for an observation: these exact-quote records are saved directly.
+Report viewing uses action type=records with label='내원 전 리포트', query/title/start/note=''.
+"""
 
 
 def object_schema(properties):
@@ -245,6 +282,7 @@ class CodexChat:
         action_fields["target_id"]["enum"] = [""]+list(dict.fromkeys(r["id"] for key in ("events", "bookings") for r in context.get(key, [])))
         action_fields["search_id"]["enum"] = [""]+[s["id"] for s in searches if s["kind"] == "hospitals"]
         action_fields["hospital_id"]["enum"] = [""]+list(dict.fromkeys(h["id"] for s in searches if s["kind"] == "hospitals" for h in s["data"].get("hospitals", [])))
+        schema["properties"]["observations"]["items"]["properties"]["instruction_id"]["enum"] = [""]+[i["id"] for i in context.get("clinician_instructions", [])]
         if sources:
             source_ids = list(dict.fromkeys(s["id"] for s in sources))
             schema["properties"]["source_ids"]["items"]["enum"] = source_ids
@@ -409,4 +447,4 @@ def validate_result(result: dict, message: str, sources: list) -> dict:
                             clean_action[key] = value
                 actions.append(clean_action)
     return {"reply": reply, "source_ids": list(dict.fromkeys(ids)), "memories": clean, "actions": actions,
-            "citations": verified_citations}
+            "citations": verified_citations, "observations": result.get("observations", [])}

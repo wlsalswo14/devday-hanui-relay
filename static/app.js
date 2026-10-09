@@ -10,13 +10,14 @@ function sourceName(record){return record.category==="classical"?`${record.book}
 function revealEditor(id){const editor=$(id);if(editor)editor.open=true;}
 function savedId(){try{return localStorage.getItem("hanui_session");}catch{return null;}}
 function saveId(id){try{localStorage.setItem("hanui_session",id);}catch{/* In-memory session remains usable. */}}
-let activeAI=null, uiGeneration=0;
+let activeAI=null, uiGeneration=0, loadingClock=null;
 function cancelActiveRequest(){
   if(!activeAI)return;
   const request=activeAI;activeAI=null;uiGeneration++;request.controller.abort();
   const url=`/api/requests/${request.id}/cancel`,body="{}";
   if(!navigator.sendBeacon(url,new Blob([body],{type:"application/json"})))fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body,keepalive:true}).catch(()=>{});
   busy(false);showError("");if(typeof status==="function")status("");
+  document.querySelectorAll(".pending-message").forEach(e=>e.remove());
 }
 window.addEventListener("pagehide",cancelActiveRequest);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelActiveRequest();});
@@ -33,7 +34,7 @@ async function api(path, options={}) {
   }finally{if(request&&activeAI===request)activeAI=null;}
 }
 function showError(message){$("error").textContent=message||"";$("error").hidden=!message;}
-function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("session-select").disabled=value&&!activeAI;$("new-chat").disabled=value&&!activeAI;$("rename-chat").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);}
+function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("session-select").disabled=value&&!activeAI;$("new-chat").disabled=value&&!activeAI;$("rename-chat").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);if(!value){clearInterval(loadingClock);loadingClock=null;$("loading-message").textContent="답변을 준비하고 있어요…";}else if(!loadingClock){const started=Date.now();loadingClock=setInterval(()=>{$("loading-message").textContent=`원문을 확인하고 답변을 준비 중이에요 · ${Math.floor((Date.now()-started)/1000)}초`;},1000);}}
 function syncSidebar(){const chat=!document.querySelector(".conversation").hidden;$("context-sidebar").hidden=!chat||!state.sidebarOpen;$("toggle-sidebar").hidden=!chat;$("toggle-sidebar").textContent="기록·자료";$("toggle-sidebar").setAttribute("aria-expanded",String(chat&&state.sidebarOpen));document.querySelector(".workspace").classList.toggle("sidebar-collapsed",!state.sidebarOpen);$("sidebar-backdrop").hidden=!chat||!state.sidebarOpen;}
 function toggleSidebar(open){if(!open&&$("context-sidebar").contains(document.activeElement))$("toggle-sidebar").focus();state.sidebarOpen=open;try{localStorage.setItem("hanui_sidebar_v2",open?"open":"closed");}catch{}syncSidebar();}
 $("toggle-sidebar").addEventListener("click",()=>toggleSidebar(!state.sidebarOpen));
@@ -104,8 +105,9 @@ async function send(override=null){
   if(state.busy||!state.session)return false;const message=(typeof override==="string"?override:$("message").value).trim();if(!message)return false;
   showError("");busy(true);
   const generation=uiGeneration;
+  const pending=node("article","message user pending-message");pending.append(node("div","message-label","나 · 전송 중"),node("div","bubble",message));$("messages").append(pending);$("messages").scrollTop=$("messages").scrollHeight;
   try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode})});if(override===null){$("message").value="";updateCount();}render();await refreshSessions();return true;}
-  catch(error){if(generation===uiGeneration&&error.name!=="AbortError")showError(error.message);return false;}finally{if(generation===uiGeneration){busy(false);if(override===null)$("message").focus();}}
+  catch(error){if(generation===uiGeneration&&error.name!=="AbortError")showError(error.message);return false;}finally{pending.remove();if(generation===uiGeneration){busy(false);if(override===null)$("message").focus();}}
 }
 $("stop-response").addEventListener("click",cancelActiveRequest);
 $("chat-form").addEventListener("submit",event=>{event.preventDefault();send();});

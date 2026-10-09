@@ -117,7 +117,7 @@ class App:
                             if not hasattr(self.model,"start_checkin"): raise ModelError("첫 확인 질문 모델이 연결되지 않았어요.")
                             if isinstance(self.model,CodexChat):
                                 keywords=self.model.retrieval_keywords(plan["body"]+" "+plan.get("assessment",""),[],[plan])
-                                sources=self.store.search_fulltext(keywords)
+                                sources=self.store.search_fulltext(keywords,4 if isinstance(self.model,GemmaChat) else 8)
                                 result=self.model.start_checkin(plan,sources)
                                 question=result["reply"]
                                 citations=self.citation_records(result,sources,mode)
@@ -238,7 +238,7 @@ class App:
                     keywords=self.model.retrieval_keywords(message.strip(),session["messages"],session["care"]["guidance"]["plans"])
                 else:
                     keywords = self.model.retrieval_keywords(message.strip(), session["messages"])
-                sources = self.store.search_fulltext(keywords)
+                sources = self.store.search_fulltext(keywords,4 if isinstance(self.model,GemmaChat) else 8)
             else:
                 sources = self.store.search(query)
             if isinstance(self.model, CodexChat):

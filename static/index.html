@@ -26,7 +26,7 @@
       <div class="conversation-head"><h1>오늘의 대화</h1><label class="mode"><span class="sr-only">대화 방식</span><select id="mode"><option value="codex">에이전트</option><option value="demo">샘플 대화</option></select></label></div>
       <div class="mode-description" id="mode-description">연결 상태를 확인하고 있어요.</div>
       <div id="messages" class="messages" role="log" aria-label="대화 내용" aria-live="polite"></div>
-      <div id="loading" class="loading" hidden><span class="loading-dot"></span>답변을 준비하고 있어요… <button id="stop-response" type="button" class="quiet">응답 중단</button></div>
+      <div id="loading" class="loading" hidden><span class="loading-dot"></span><span id="loading-message">답변을 준비하고 있어요…</span> <button id="stop-response" type="button" class="quiet">응답 중단</button></div>
       <div id="error" class="error" role="alert" hidden></div>
       <form id="chat-form" class="composer"><label for="message" class="sr-only">메시지</label><textarea id="message" rows="2" maxlength="2000" placeholder="궁금한 점이나 오늘의 생활을 이야기해 주세요" required></textarea><button id="send" class="send" type="submit" aria-label="메시지 보내기">↑</button></form>
       <p class="composer-note"><span>Enter 전송 · Shift+Enter 줄바꿈</span><span id="counter">0 / 2000</span></p>

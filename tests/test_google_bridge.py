@@ -14,7 +14,7 @@ from server import App
 
 class GoogleBridgeTests(unittest.TestCase):
     def model(self):
-        return GemmaChat(Path(tempfile.gettempdir()), key="synthetic-key")
+        return GemmaChat(Path(tempfile.gettempdir()), key="synthetic-key", effort="high")
 
     def test_request_uses_gemma_high_and_key_only_in_header(self):
         response = {"candidates": [{"content": {"parts": [{"thought": True, "text": "ignored"},
@@ -28,6 +28,33 @@ class GoogleBridgeTests(unittest.TestCase):
         self.assertEqual(body["generationConfig"]["thinkingConfig"]["thinkingLevel"], "high")
         self.assertNotIn("tools", body)
 
+    def test_source_excerpts_preserve_exact_original_text(self):
+        model=self.model()
+        model.search_terms=["起居"]
+        original="前"*3000+"起居有常"+"後"*3000
+        response={"candidates":[{"content":{"parts":[{"text":"{}"}]}}]}
+        with patch("google_bridge.urllib.request.urlopen",return_value=io.BytesIO(json.dumps(response).encode())) as call:
+            model.execute("Answer",{"RETRIEVED_KNOWLEDGE":[{"id":"fixture","body":original}]},{})
+        text=json.loads(call.call_args.args[0].data)["contents"][0]["parts"][0]["text"]
+        record=json.loads(text.split("\nDATA:\n",1)[1])["RETRIEVED_KNOWLEDGE"][0]
+        self.assertIn("起居有常",record["body"])
+        self.assertEqual(record["body"],original[record["excerpt_offset_start"]:record["excerpt_offset_start"]+2200])
+
+    def test_quote_selection_resolves_exact_db_text_and_rejects_unknown_option(self):
+        model=self.model();model.search_terms=["起居"]
+        payload={"RETRIEVED_KNOWLEDGE":[{"id":"fixture","category":"classical","body":"飮食有節，起居有常。"}]}
+        schema={"properties":{"citations":{}}}
+        for quote_id in ["q0","invented"]:
+            parsed={"source_ids":[],"citations":[{"quote_id":quote_id,"reading":"식사에 절도가 있고 생활에 규칙이 있습니다."}]}
+            response={"candidates":[{"content":{"parts":[{"text":json.dumps(parsed,ensure_ascii=False)}]}}]}
+            with patch("google_bridge.urllib.request.urlopen",return_value=io.BytesIO(json.dumps(response).encode())):
+                if quote_id=="invented":
+                    with self.assertRaises(ModelError):model.execute("Answer",payload,schema)
+                else:
+                    result,_=model.execute("Answer",payload,schema)
+                    self.assertEqual(result["citations"][0]["quote"],"飮食有節，起居有常。")
+                    self.assertEqual(result["citations"][0]["source_id"],"fixture")
+
     def test_provider_error_cannot_leak_credentials(self):
         for status in [403, 429, 503]:
             error = urllib.error.HTTPError("url", status, "synthetic-key", {}, io.BytesIO(b"synthetic-key"))
@@ -35,7 +62,7 @@ class GoogleBridgeTests(unittest.TestCase):
                 with self.assertRaises(ModelError) as caught:
                     self.model().retrieval_keywords("睡眠", [])
                 self.assertNotIn("synthetic-key", str(caught.exception))
-                self.assertEqual(call.call_count, 1)
+                self.assertEqual(call.call_count, 2 if status==503 else 1)
 
     def test_missing_exact_original_blocks_turn_and_calendar_changes(self):
         model = self.model()

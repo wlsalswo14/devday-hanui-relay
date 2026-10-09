@@ -141,6 +141,11 @@ class GuidanceStore:
             """)
             if "excluded_at" not in {r[1] for r in db.execute("PRAGMA table_info(patient_observations)")}:
                 db.execute("ALTER TABLE patient_observations ADD COLUMN excluded_at TEXT")
+            columns={r[1] for r in db.execute("PRAGMA table_info(guidance_plans)")}
+            if "assessment" not in columns:
+                db.execute("ALTER TABLE guidance_plans ADD COLUMN assessment TEXT NOT NULL DEFAULT ''")
+            if "opening_message_id" not in columns:
+                db.execute("ALTER TABLE guidance_plans ADD COLUMN opening_message_id TEXT")
 
     def owner(self, db, session):
         if not db.execute("SELECT 1 FROM sessions WHERE id=?", (session,)).fetchone(): raise KeyError(session)
@@ -148,6 +153,7 @@ class GuidanceStore:
     def create(self, session, body):
         original = text(body.get("text"), "한의사 지침", 4000)
         author = text(body.get("author", "담당 한의사"), "입력자", 80)
+        assessment = text(body.get("assessment", ""), "한의사 진단·평가", 2000, required=False)
         starts = date.fromisoformat(body.get("starts_on", today())).isoformat()
         if not "2000-01-01" <= starts <= today(): raise ValueError("지침 시작일은 오늘 또는 이전 날짜로 입력해 주세요.")
         clauses = []
@@ -162,7 +168,7 @@ class GuidanceStore:
             self.owner(db, session)
             count = db.execute("SELECT COUNT(*) FROM goals WHERE session_id=?", (session,)).fetchone()[0]
             if count+len(clauses) > 30: raise ValueError("개인 목표와 지침은 합쳐서 30개까지 만들 수 있어요.")
-            db.execute("INSERT INTO guidance_plans VALUES (?,?,?,?,?,?)", (plan_id, session, author, original, starts, stamp))
+            db.execute("INSERT INTO guidance_plans(id,session_id,author,body,starts_on,created_at,assessment) VALUES (?,?,?,?,?,?,?)", (plan_id, session, author, original, starts, stamp, assessment))
             for clause, start, end in clauses:
                 category, rule = rule_for(clause)
                 goal, instruction = uuid.uuid4().hex, uuid.uuid4().hex
@@ -170,6 +176,22 @@ class GuidanceStore:
                 db.execute("INSERT INTO guidance_instructions(id,session_id,plan_id,goal_id,body,offset_start,offset_end,category,rule,starts_on) VALUES (?,?,?,?,?,?,?,?,?,?)",
                            (instruction,session,plan_id,goal,clause,start,end,category,json.dumps(rule),starts))
         return self.store.care.dashboard(session)
+
+    def opening(self, session, plan_id, question, mode):
+        """An assistant-only prompt is never a patient statement or observation."""
+        question=text(question,"첫 확인 질문",300)
+        if not re.search(r"[가-힣]",question) or "?" not in question:
+            raise ValueError("생활 기록을 시작할 확인 질문을 생성하지 못했어요.")
+        if mode not in {"codex","demo"}: raise ValueError("지원하지 않는 대화 방식이에요.")
+        with self.store.connect() as db:
+            self.owner(db,session)
+            plan=db.execute("SELECT opening_message_id FROM guidance_plans WHERE id=? AND session_id=?",(plan_id,session)).fetchone()
+            if not plan: raise ValueError("현재 대화의 한의사 지침을 확인해 주세요.")
+            if plan["opening_message_id"]: return plan["opening_message_id"]
+            identifier=uuid.uuid4().hex
+            db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at,actions) VALUES (?,?,?,?,?,?,?,?)",(identifier,session,"assistant",question,mode,"[]",datetime.now(KST).isoformat(),"[]"))
+            db.execute("UPDATE guidance_plans SET opening_message_id=? WHERE id=?",(identifier,plan_id))
+        return identifier
 
     def dashboard(self, session):
         with self.store.connect() as db:
@@ -180,6 +202,7 @@ class GuidanceStore:
         for i in instructions:
             i["rule"]=json.loads(i["rule"]);i["author"]=by_id[i["plan_id"]]["author"]
             i["plan_text"]=by_id[i["plan_id"]]["body"];i["created_at"]=by_id[i["plan_id"]]["created_at"]
+            i["assessment"]=by_id[i["plan_id"]]["assessment"]
             if i["plan_text"][i["offset_start"]:i["offset_end"]]!=i["body"] or rule_for(i["body"])[1]!=i["rule"]:
                 raise ValueError("지침 원문과 저장된 비교 기준이 일치하지 않아요.")
         observations=self.observations(session)

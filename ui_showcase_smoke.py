@@ -24,6 +24,11 @@ def main():
         app=App(Path(directory),ROOT/"data"/"knowledge.seed.json",OfflineModel())
         showcase=build_showcase(app.store);sid=showcase["primary_session_id"]
         session=app.store.get_session(sid);report=app.store.guidance.report(sid)
+        assert [m["role"] for m in session["messages"][:3]]==["assistant","user","assistant"]
+        assert "어젯밤" in session["messages"][0]["content"]
+        assert "새벽 1시" in session["messages"][1]["content"]
+        assert "커피는 어제 몇 잔" in session["messages"][2]["content"]
+        assert "합성 한의사 진단" in session["care"]["guidance"]["plans"][0]["assessment"]
         assert len(session["care"]["checkins"])==8
         assert len(session["care"]["events"])==7
         assert (report["recorded_days"],report["missing_days"])==(8,6)
@@ -46,6 +51,9 @@ def main():
                 expect(page.locator("#context-sidebar")).to_be_hidden()
                 chat_rect=page.locator("#messages").bounding_box()
                 assert chat_rect["width"]>=1440*0.8 and chat_rect["height"]>=600,chat_rect
+                page.locator("#messages").evaluate("e=>e.scrollTop=0")
+                page.screenshot(path=str(output/"showcase-opening.png"))
+                page.locator("#messages").evaluate("e=>e.scrollTop=e.scrollHeight")
                 expect(page.locator(".hospital-card")).to_have_count(3)
                 expect(page.locator("#guidance-count")).to_have_text("4")
                 expect(page.locator("#sources .source-card")).to_have_count(2)

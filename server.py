@@ -99,7 +99,19 @@ class App:
             if kind == "goals":
                 return self.care.tick(session_id, item, body) if item else self.care.goal(session_id, body)
             if kind == "guidance" and not item:
-                return self.store.guidance.create(session_id, body)
+                with self.store.connect():
+                    care=self.store.guidance.create(session_id, body)
+                    if body.get("start_conversation"):
+                        mode=body.get("mode","codex")
+                        if mode not in {"codex","demo"}: raise ValueError("지원하지 않는 대화 방식이에요.")
+                        plan=care["guidance"]["plans"][-1]
+                        if mode=="codex":
+                            if not hasattr(self.model,"start_checkin"): raise ModelError("첫 확인 질문 모델이 연결되지 않았어요.")
+                            question=self.model.start_checkin(plan)
+                        else:
+                            question="[샘플 질문] 한의사 선생님의 생활 지침을 함께 살펴볼게요. 어젯밤에는 몇 시에 주무셨어요?"
+                        self.store.guidance.opening(session_id,plan["id"],question,mode)
+                return self.care.dashboard(session_id)
             if kind == "events":
                 return self.care.event(session_id, body, item)
             if kind == "bookings":
@@ -206,6 +218,7 @@ class App:
                 self.model.care_context["checkins"] = care["checkins"][:7]
                 self.model.care_context["public_searches"] = care["searches"]
                 self.model.care_context["clinician_instructions"] = [i for i in care["guidance"]["instructions"] if i["active"]]
+                self.model.care_context["clinician_plans"] = care["guidance"]["plans"]
                 self.model.care_context["patient_observations"] = care["guidance"]["observations"][-20:]
             responder = self.model.respond if mode == "codex" else demo_response
             result = responder(message.strip(), session["messages"], session["memories"], sources)

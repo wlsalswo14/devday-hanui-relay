@@ -12,6 +12,9 @@ from server import App, ROOT
 class PatientModel:
     def __init__(self): self.observations=[]
     def available(self): return True
+    def start_checkin(self,plan):
+        self.plan=plan
+        return "한의사 선생님의 생활 지침을 함께 살펴볼게요. 어젯밤에는 몇 시에 주무셨어요?"
     def respond(self,message,history,memories,sources):
         return validate_result({"reply":"합성 기록 처리", "source_ids":[], "memories":[], "actions":[], "citations":[], "observations":self.observations},message,sources)
 
@@ -40,6 +43,51 @@ class GuidanceTests(unittest.TestCase):
         for i in session["care"]["guidance"]["instructions"]:
             self.assertEqual(i["plan_text"][i["offset_start"]:i["offset_end"]],i["body"])
         self.assertEqual(self.app.store.get_session(self.other)["care"]["guidance"]["instructions"],[])
+
+    def test_clinician_assessment_starts_assistant_without_patient_facts(self):
+        self.app.care_action(self.other,"guidance",{"text":"취침 23시 전","assessment":"합성 한의사 진단: 수면 불규칙","start_conversation":True,"mode":"codex"})
+        session=self.app.store.get_session(self.other)
+        self.assertEqual([m["role"] for m in session["messages"]],["assistant"])
+        self.assertIn("수면 불규칙",self.model.plan["assessment"])
+        self.assertEqual(session["care"]["guidance"]["observations"],[])
+        self.assertEqual(session["memories"],[])
+        self.assertEqual(self.app.store.guidance.report(self.other)["recorded_days"],0)
+
+    def test_opening_ownership_duplicate_and_persistence(self):
+        self.app.care_action(self.other,"guidance",{"text":"취침 23시 전","assessment":"합성 평가","start_conversation":True,"mode":"codex"})
+        plan=self.app.store.guidance.dashboard(self.other)["plans"][-1]
+        self.assertEqual(self.app.store.guidance.opening(self.other,plan["id"],"중복 질문인가요?","codex"),plan["opening_message_id"])
+        self.assertEqual(len(self.app.store.get_session(self.other)["messages"]),1)
+        with self.assertRaises(ValueError):self.app.store.guidance.opening(self.sid,plan["id"],"다른 대화인가요?","codex")
+        from store import Store
+        restored=Store(self.app.store.path,ROOT/"data"/"knowledge.seed.json").get_session(self.other)
+        self.assertEqual(restored["care"]["guidance"]["plans"][-1]["assessment"],"합성 평가")
+        self.assertEqual(restored["messages"][0]["id"],plan["opening_message_id"])
+
+    def test_opening_failure_rolls_back_plan_goals_and_message(self):
+        self.model.start_checkin=lambda plan:"유효한 질문이 없는 결과"
+        with self.assertRaises(ValueError):self.app.care_action(self.other,"guidance",{"text":"취침 23시 전","assessment":"합성 평가","start_conversation":True,"mode":"codex"})
+        session=self.app.store.get_session(self.other)
+        self.assertEqual(session["care"]["guidance"]["plans"],[])
+        self.assertEqual(session["care"]["goals"],[])
+        self.assertEqual(session["messages"],[])
+
+    def test_demo_opening_is_explicitly_labelled_and_invalid_mode_is_atomic(self):
+        self.app.care_action(self.other,"guidance",{"text":"취침 23시 전","start_conversation":True,"mode":"demo"})
+        message=self.app.store.get_session(self.other)["messages"][0]
+        self.assertEqual(message["mode"],"demo")
+        self.assertIn("샘플 질문",message["content"])
+        before=self.app.store.get_session(self.sid)
+        with self.assertRaises(ValueError):self.app.care_action(self.sid,"guidance",{"text":"취침 23시 전","start_conversation":True,"mode":"other"})
+        self.assertEqual(self.app.store.get_session(self.sid),before)
+
+    def test_verified_coaching_keeps_one_followup_without_unverified_prose(self):
+        self.model.respond=lambda message,history,memories,sources:validate_result({"reply":"추측한 평가 문장. 커피는 어제 몇 잔 마셨어요?","source_ids":[],"memories":[],"actions":[],"citations":[],"observations":[self.item("bedtime","어제 새벽 1시에 잤어","01:00",1)]},message,sources)
+        result=self.app.chat(self.sid,{"message":"어제 새벽 1시에 잤어","mode":"codex"})
+        reply=result["messages"][-1]["content"]
+        self.assertIn("지침과 차이",reply)
+        self.assertIn("커피는 어제 몇 잔 마셨어요?",reply)
+        self.assertNotIn("추측한 평가",reply)
 
     def test_late_bedtime_and_coffee_compare_with_quote_and_previous_day(self):
         q="어제 새벽 1시에 잤어. 어제 커피 두 잔 마셨어"

@@ -24,6 +24,7 @@ function patientReference(records,label="발언 근거 보기",absence=null){
 }
 function showInstructionOriginal(i){
   const body=$("patient-evidence-body");body.replaceChildren();body.append(node("h3","","한의사 지침 입력 원문"),node("p","source-meta",`${i.author} · 시작 ${i.starts_on} · 입력 ${new Date(i.created_at).toLocaleString("ko-KR",{timeZone:"Asia/Seoul"})}`));
+  if(i.assessment)body.append(node("h3","","한의사 진단·평가"),node("p","source-body",i.assessment));
   const p=node("p","source-body"),chars=Array.from(i.plan_text);p.append(document.createTextNode(chars.slice(0,i.offset_start).join("")),node("mark","",chars.slice(i.offset_start,i.offset_end).join("")),document.createTextNode(chars.slice(i.offset_end).join("")));body.append(p);$("patient-evidence-dialog").showModal();
 }
 function renderClinicianGoal(container,goal){
@@ -40,12 +41,13 @@ function renderGuidance(care){
   const plans=$("guidance-plans");plans.replaceChildren();
   if(!active.length)plans.append(node("p","empty-note","지침을 입력해 주세요."));
   else {plans.append(node("p","search-note",`진행 중 ${active.length}개`));}
+  const assessments=(data.plans||[]).filter(p=>p.assessment);if(assessments.length)plans.append(fold("한의사 진단·평가",assessments.map(p=>node("p","search-note",`${p.author} · ${p.assessment}`)),"record-details"));
   const records=$("patient-records");records.replaceChildren();
   if(data.observations.length){records.append(node("h3","","최근 대화 기록"));const list=node("div","patient-recent-records");data.observations.slice(-3).reverse().forEach(o=>{const row=node("div","patient-recent-row");row.append(node("strong","",`${o.day.slice(5)} · ${observationLabels[o.metric]} · ${observationValue(o)}`),patientReference([o],"원문"),button("제외",()=>deleteRecord("patient-records",o.id),"quiet"));list.append(row);});records.append(list);}
   if(currentView==="report")loadReport();
 }
 $("new-guidance").addEventListener("click",()=>{$("guidance-start").value=state.session.care.today;$("guidance-dialog").showModal();$("guidance-text").focus();});
-$("guidance-form").addEventListener("submit",async e=>{e.preventDefault();const result=await runTool(()=>post("guidance",{text:$("guidance-text").value,author:$("guidance-author").value,starts_on:$("guidance-start").value}));if(result){$("guidance-dialog").close();$("guidance-text").value="";status("한의사 지침을 개인 목표로 저장했어요. 대화에서 실천 내용을 알려주세요.");}});
+$("guidance-form").addEventListener("submit",async e=>{e.preventDefault();const result=await runTool(async()=>{const care=await post("guidance",{text:$("guidance-text").value,assessment:$("guidance-assessment").value,author:$("guidance-author").value,starts_on:$("guidance-start").value,start_conversation:true,mode:state.mode});state.session=await api(`/api/sessions/${state.session.id}`);render();return care;},"첫 확인 질문을 준비하고 있어요…");if(result){$("guidance-dialog").close();$("guidance-text").value="";$("guidance-assessment").value="";showView("chat");$("message").focus();status("Hanui의 질문에 답해 주세요.");}});
 $("sidebar-report").addEventListener("click",()=>showView("report"));
 $("report-form").addEventListener("submit",e=>{e.preventDefault();loadReport();});
 $("print-report").addEventListener("click",()=>{if(guidanceState.report)window.print();});

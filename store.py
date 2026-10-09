@@ -251,7 +251,12 @@ class Store:
             if observation_ids:
                 coaching = self.guidance.coach(session_id,observation_ids)
                 if coaching:
-                    reply = reply+"\n\n"+coaching if sources or actions else coaching
+                    if sources or actions:
+                        reply=reply+"\n\n"+coaching
+                    else:
+                        questions=re.findall(r"[^.!?？\n]+[?？]",reply)
+                        followup=questions[-1].strip() if questions else ""
+                        reply=coaching+("\n\n"+followup if 0<len(followup)<=200 else "")
             db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at,actions) VALUES (?,?,?,?,?,?,?,?)",
                        (uuid.uuid4().hex,session_id,"assistant",reply,mode,json.dumps(sources,ensure_ascii=False),timestamp,json.dumps(actions or [],ensure_ascii=False)))
             for memory in memories:

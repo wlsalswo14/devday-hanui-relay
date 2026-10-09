@@ -35,12 +35,13 @@ def cited_classics(store):
     return selected
 
 
-def add_report(store,sid,day,clauses,values,diet_id):
+def add_report(store,sid,day,clauses,values,diet_id,followup=""):
     message=f"[합성 환자 발언 · 실제 자료 아님]\n{day} 생활 기록이야.\n"+". ".join(clauses)+"."
     candidates=[{"metric":metric,"quote":quote,"value":str(value),"date":day,"instruction_id":diet_id if metric=="adherence" else ""} for quote,(metric,value) in zip(clauses,values)]
     observations=store.guidance.validate(sid,message,candidates)
-    memories=[{"category":category,"summary":f"{day} · {clauses[index]}","quote":clauses[index]} for category,index in [("sleep",4),("diet",5),("symptom",6)] if len(clauses)>index]
-    store.save_turn(sid,message,"합성 시연: 지침에 비춰 생활 발언을 기록했어요.",[],memories,"demo",observations=observations)
+    categories={"sleep_hours":"sleep","diet_note":"diet","symptom":"symptom"}
+    memories=[{"category":categories[metric],"summary":f"{day} · {clause}","quote":clause} for clause,(metric,_) in zip(clauses,values) if metric in categories]
+    store.save_turn(sid,message,followup or "합성 시연: 지침에 비춰 생활 발언을 기록했어요.",[],memories,"demo",observations=observations)
 
 
 def build_showcase(store,end=None):
@@ -49,17 +50,24 @@ def build_showcase(store,end=None):
     assert data["synthetic_only"] is True
     with store.connect():
         sid=store.create_session()["id"]
-        store.rename_session(sid,"합성 데모 A · 지침에서 내원까지")
-        store.guidance.create(sid,{"text":data["instructions"],"author":"시연 한의사 · 합성 지침","starts_on":(end-timedelta(days=13)).isoformat()})
+        store.rename_session(sid,"합성 데모 A · 한의사 진단에서 먼저 묻는 Hanui")
+        store.guidance.create(sid,{"text":data["instructions"],"assessment":data["clinician_assessment"],"author":"시연 한의사 · 합성 지침","starts_on":(end-timedelta(days=13)).isoformat()})
+        plan=store.guidance.dashboard(sid)["plans"][-1]
+        opening_id=store.guidance.opening(sid,plan["id"],data["opening_question"],"demo")
         diet=next(i for i in store.guidance.dashboard(sid)["instructions"] if i["category"]=="diet")
-        for item in data["days"]:
+        for index,item in enumerate(data["days"]):
             day=(end-timedelta(days=item["ago"])).isoformat();met=item["met"]
             walk=15 if met else 5;coffee=1 if met else 2
             clauses=["밤 10시 30분에 잤어" if met else "새벽 1시에 잤어",f"커피 {coffee}잔 마셨어",f"점심 후 {walk}분 산책했어","찬 음식 줄였어" if met else "찬 음식 줄이지 못했어",f"{item['sleep']}시간 잤어",item["meal"],item["symptom"]]
             values=[("bedtime","22:30" if met else "01:00"),("caffeine_cups",coffee),("walk_after_lunch_minutes",walk),("adherence","done" if met else "not_done"),("sleep_hours",item["sleep"]),("diet_note",""),("symptom","")]
             # The check-in scales are explicit fictional self-reports, not inferred scores.
             extra=f"스트레스는 10점 중 {item['stress']}점, 활력은 10점 중 {item['energy']}점, 불편감은 10점 중 {item['discomfort']}점이야"
-            add_report(store,sid,day,clauses+[extra],values,diet["id"])
+            if index==0:
+                add_report(store,sid,day,[clauses[0],clauses[4]],[values[0],values[4]],diet["id"],"커피는 어제 몇 잔 마셨어요?")
+                indices=[1,2,3,5,6]
+                add_report(store,sid,day,[clauses[i] for i in indices]+[extra],[values[i] for i in indices],diet["id"])
+            else:
+                add_report(store,sid,day,clauses+[extra],values,diet["id"])
             store.care.checkin(sid,{"date":day,"sleep":item["sleep"],"caffeine":coffee,"activity":walk,"stress":item["stress"],"energy":item["energy"],"discomfort":item["discomfort"],"note":"합성 시연 체크인 · 위 날짜의 합성 대화에 적힌 직접 보고 수치"})
         classics=cited_classics(store)
         store.save_turn(sid,"[합성 시연 질문] 생활 관리와 미병에 관한 고문헌 DB 문장을 찾아줘.","DB에 있는 실제 원문 두 곳을 연결했어요. 식사·일상의 규칙성과 미병에 관한 역사적 기록이며, 개인 지침은 입력한 한의사 지침을 기준으로 관리해요.",classics,[],"demo")
@@ -88,7 +96,7 @@ def build_showcase(store,end=None):
         report=store.guidance.report(sid,end.isoformat())
         assert (report["recorded_days"],report["missing_days"])==(8,6)
         assert all(row["rate"]==75 for row in report["instructions"])
-    return {"synthetic_only":True,"date":end.isoformat(),"primary_session_id":sid,"secondary_session_id":other,"primary_url":f"http://127.0.0.1:8765/?session={sid}","secondary_url":f"http://127.0.0.1:8765/?session={other}","counts":{"recorded_days":8,"missing_days":6,"adherence_percent":75,"hospital_cards":3,"checkins":8,"calendar_events":7,"prepared_bookings":1,"synthetic_confirmed_bookings":1,"classical_citations":2}}
+    return {"synthetic_only":True,"version":2,"date":end.isoformat(),"primary_session_id":sid,"secondary_session_id":other,"opening_message_id":opening_id,"opening_url":f"http://127.0.0.1:8765/?session={sid}&message={opening_id}","primary_url":f"http://127.0.0.1:8765/?session={sid}","secondary_url":f"http://127.0.0.1:8765/?session={other}","counts":{"recorded_days":8,"missing_days":6,"adherence_percent":75,"hospital_cards":3,"checkins":8,"calendar_events":7,"prepared_bookings":1,"synthetic_confirmed_bookings":1,"classical_citations":2}}
 
 
 def main():
@@ -97,7 +105,7 @@ def main():
     args=parser.parse_args();store=Store(ROOT/".runtime"/"hanui.sqlite3",ROOT/"data"/"knowledge.seed.json")
     target=ROOT/".runtime"/"showcase-demo.json"
     existing=json.loads(target.read_text(encoding="utf-8")) if target.exists() else None
-    if existing and not args.new and existing.get("date")==datetime.now(KST).date().isoformat():
+    if existing and not args.new and existing.get("version")==2 and existing.get("date")==datetime.now(KST).date().isoformat():
         try:
             store.get_session(existing["primary_session_id"]);store.get_session(existing["secondary_session_id"])
             print(json.dumps(existing,ensure_ascii=False,indent=2));return

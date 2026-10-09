@@ -22,6 +22,9 @@ from ui_design_smoke import TEXT_CONTRAST
 class GuidanceFixture:
     def __init__(self):self.items=[]
     def available(self):return True
+    def start_checkin(self,plan):
+        assert plan["assessment"]=="합성 한의사 평가: 수면 불규칙"
+        return "한의사 선생님의 수면 지침을 함께 살펴볼게요. 어젯밤에는 몇 시에 주무셨어요?"
     def respond(self,message,history,memories,sources):
         return validate_result({"reply":"합성 지침 코칭", "source_ids":[], "memories":[], "actions":[], "citations":[], "observations":self.items},message,sources)
 
@@ -45,10 +48,15 @@ def main():
                 page.locator("#new-guidance").click()
                 original="취침 23시 전, 찬 음식 줄이기, 커피 1잔 이하, 점심 후 산책 10분"
                 page.locator("#guidance-author").fill("합성 담당 한의사")
+                page.locator("#guidance-assessment").fill("합성 한의사 평가: 수면 불규칙")
                 page.locator("#guidance-start").fill((datetime.now(KST).date()-timedelta(days=13)).isoformat())
                 page.locator("#guidance-text").fill(original)
                 page.get_by_role("button",name="지침·개인 목표 저장",exact=True).click()
                 expect(page.locator("#guidance-dialog")).to_be_hidden()
+                expect(page.locator(".message.assistant")).to_have_count(1)
+                expect(page.locator(".message.user")).to_have_count(0)
+                expect(page.locator(".message.assistant")).to_contain_text("어젯밤에는 몇 시")
+                page.locator('.app-nav [data-view="daily"]').click()
                 expect(page.locator(".clinician-goal")).to_have_count(4)
                 page.locator(".clinician-goal .record-details > summary").first.click()
                 page.locator(".clinician-goal").first.get_by_role("button",name="지침 원문",exact=True).click()

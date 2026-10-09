@@ -50,7 +50,12 @@ def main():
                 expect(page.locator("#session-select")).to_have_value(sid)
                 expect(page.locator("#context-sidebar")).to_be_hidden()
                 chat_rect=page.locator("#messages").bounding_box()
-                assert chat_rect["width"]>=1440*0.8 and chat_rect["height"]>=600,chat_rect
+                # The new desktop rail occupies 220px; keep chat broad in the remaining workspace.
+                rail=page.locator(".app-nav").bounding_box()
+                assert rail["width"]==220 and rail["x"]==0,rail
+                assert chat_rect["width"]>=(1440-rail["width"])*0.8 and chat_rect["height"]>=600,chat_rect
+                composer=page.locator("#chat-form").bounding_box()
+                assert composer["y"]+composer["height"]<=1100,composer
                 page.locator("#messages").evaluate("e=>e.scrollTop=0")
                 page.screenshot(path=str(output/"showcase-opening.png"))
                 page.locator("#messages").evaluate("e=>e.scrollTop=e.scrollHeight")
@@ -99,7 +104,10 @@ def main():
                     for view in ["chat","daily","calendar","report"]:
                         page.locator(f'.app-nav [data-view="{view}"]').click()
                         if view=="chat" and page.locator("#context-sidebar").is_visible():page.locator("#close-sidebar").click()
-                        if view=="report":expect(page.locator("#print-report")).to_be_enabled()
+                        if view=="report":
+                            expect(page.locator("#print-report")).to_be_enabled()
+                            # Horizontal scrolling keeps instruction labels readable on a phone.
+                            assert page.locator(".adherence-table th").first.bounding_box()["width"]>=150
                         assert page.evaluate("document.documentElement.scrollWidth<=innerWidth"),(width,view)
                         assert not page.evaluate(TEXT_CONTRAST)["failures"],(width,view)
                     if width==390:page.screenshot(path=str(output/"showcase-mobile-report.png"),full_page=True)

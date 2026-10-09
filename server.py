@@ -7,10 +7,11 @@ import re
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 from codex_bridge import CodexChat, ModelError, MODEL, EFFORT
 from store import Store
+from care import text
 
 ROOT = Path(__file__).resolve().parent
 
@@ -44,8 +45,8 @@ def demo_response(message, history, memories, sources):
             reply = "아직 저장된 생활기록이 없어요. 최근 수면이나 식사 패턴부터 이야기해 줄래요?"
         return {"reply": reply, "source_ids": [], "memories": additions}
     if re.search(r"예약|병원|캘린더|일정", message):
-        return {"reply": "병원 검색·예약과 캘린더 연결은 아직 준비 중이에요. 지금은 대화의 생활기록을 기억하고 한의학 자료를 찾아볼 수 있어요. 방문 전에 정리하고 싶은 불편함이 있나요?",
-                "source_ids": [], "memories": additions}
+        return {"reply": "병원 찾기에서 실제 정보를 검색하고 전화·예약 링크로 연결할 수 있어요. 병원에서 확정을 받은 뒤 알려주면 일정에 남길 수 있어요. 샘플 대화는 웹을 검색하지 않아요.",
+                "source_ids": [], "memories": additions, "actions": [{"type": "hospitals", "label": "병원 찾기", "query": "", "title": "", "start": "", "note": ""}]}
     intro = "이야기한 내용을 생활기록에 남겼어요." if additions else "관련 자료를 찾아봤어요."
     if sources:
         body = sources[0]["body"]
@@ -71,6 +72,39 @@ class App:
         self.model = model or CodexChat(runtime)
         self.codex_enabled = self.model.available()
         self.lock = threading.Lock()
+        self.care = self.store.care
+
+    def web_search(self, session_id, body, kind):
+        self.store.get_session(session_id)
+        if body.get("consent") is not True:
+            raise ValueError("검색어를 OpenAI 웹 검색에 전달하는 데 동의해 주세요.")
+        query = text(body.get("query"), "검색어", 350)
+        if not hasattr(self.model, "search_web"):
+            raise ModelError("웹 검색 모델이 연결되지 않았어요.")
+        if not self.lock.acquire(blocking=False):
+            raise ValueError("이전 AI 응답을 기다리고 있어요.")
+        try:
+            result = self.model.search_web(query, kind)
+            self.care.save_search(session_id, kind, result)
+            return self.care.dashboard(session_id)
+        finally:
+            self.lock.release()
+
+    def care_action(self, session_id, kind, body, item=None):
+        if not self.lock.acquire(blocking=False):
+            raise ValueError("AI 응답이 끝난 뒤 기록을 변경할 수 있어요.")
+        try:
+            if kind == "checkins" and not item:
+                return self.care.checkin(session_id, body)
+            if kind == "goals":
+                return self.care.tick(session_id, item, body) if item else self.care.goal(session_id, body)
+            if kind == "events":
+                return self.care.event(session_id, body, item)
+            if kind == "bookings":
+                return self.care.booking_status(session_id, item, body) if item else self.care.booking(session_id, body)
+            raise ValueError("지원하지 않는 요청이에요.")
+        finally:
+            self.lock.release()
 
     def chat(self, session_id, body):
         message, mode = body.get("message"), body.get("mode", "codex")
@@ -93,11 +127,35 @@ class App:
                 if past:
                     query += " " + past[-1]
             sources = self.store.search(query)
+            if isinstance(self.model, CodexChat):
+                care = session["care"]
+                self.model.care_context = {key: care[key] for key in ("today", "summary", "goals", "events", "bookings", "conflicts")}
+                self.model.care_context["checkins"] = care["checkins"][:7]
+                self.model.care_context["public_searches"] = care["searches"][:2]
             responder = self.model.respond if mode == "codex" else demo_response
             result = responder(message.strip(), session["messages"], session["memories"], sources)
+            actions = result.get("actions", [])
+            # Only explicit public search requests may trigger automatic read-only searches.
+            # Changes to checkins/goals/events always require review in the UI.
+            if mode == "codex" and hasattr(self.model, "search_web"):
+                for action in actions[:2]:
+                    kind = action.get("type")
+                    explicit = (kind == "hospitals" and re.search(r"병원|한의원", message) and re.search(r"찾|검색|추천|후기|예약", message)) or (kind == "web" and re.search(r"웹|인터넷|검색해|검색해줘|검색해 줘", message))
+                    if explicit and action.get("query"):
+                        try:
+                            found = self.model.search_web(action["query"][:350], kind)
+                            self.care.save_search(session_id, kind, found)
+                            action["completed"] = True
+                            action["label"] = "검색 결과 보기"
+                            result["reply"] += "\n\n" + found["summary"]
+                        except ModelError:
+                            action["error"] = "웹 검색을 완료하지 못했어요. 병원 찾기 또는 웹 검색에서 다시 시도할 수 있어요."
+                    # At most one web request per conversation turn.
+                    if explicit:
+                        break
             citations = [s for s in sources if s["id"] in result["source_ids"]]
             return self.store.save_turn(session_id, message.strip(), result["reply"], citations,
-                                        result["memories"], mode)
+                                        result["memories"], mode, actions)
         finally:
             self.lock.release()
 
@@ -128,13 +186,27 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/config":
             return self.respond(200, {"codex_enabled": self.app.codex_enabled,
                 "knowledge_count": self.app.store.knowledge_count(), "model": MODEL, "effort": EFFORT})
+        if path == "/api/knowledge":
+            query = parse_qs(urlparse(self.path).query)
+            try:
+                return self.respond(200, {"records": self.app.store.library(query.get("q", [""])[0][:300], query.get("category", [""])[0])})
+            except ValueError as exc:
+                return self.respond(400, {"error": str(exc)})
+        match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(care|calendar\.ics|export)", path)
+        if match:
+            try:
+                if match[2] == "calendar.ics":
+                    return self.respond(200, self.app.care.calendar(match[1]), "text/calendar; charset=utf-8")
+                return self.respond(200, self.app.care.dashboard(match[1]) if match[2] == "care" else self.app.store.get_session(match[1]))
+            except KeyError:
+                return self.respond(404, {"error": "대화를 찾지 못했어요."})
         match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})", path)
         if match:
             try:
                 return self.respond(200, self.app.store.get_session(match[1]))
             except KeyError:
                 return self.respond(404, {"error": "대화를 찾지 못했어요."})
-        files = {"/": "index.html", "/app.css": "app.css", "/app.js": "app.js", "/favicon.svg": "favicon.svg"}
+        files = {"/": "index.html", "/app.css": "app.css", "/app.js": "app.js", "/care.js": "care.js", "/favicon.svg": "favicon.svg"}
         if path in files:
             file = ROOT / "static" / files[path]
             if file.exists():
@@ -167,6 +239,12 @@ class Handler(BaseHTTPRequestHandler):
             match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/chat", path)
             if match:
                 return self.respond(200, self.app.chat(match[1], body))
+            match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(checkins|goals|events|bookings|hospitals|web)(?:/([a-f0-9]{32}))?", path)
+            if match:
+                session_id, kind, item = match.groups()
+                if kind in {"hospitals", "web"} and not item:
+                    return self.respond(200, self.app.web_search(session_id, body, kind))
+                return self.respond(200, self.app.care_action(session_id, kind, body, item))
             return self.respond(404, {"error": "요청을 찾지 못했어요."})
         except (ValueError, json.JSONDecodeError) as exc:
             return self.respond(400, {"error": str(exc) if not isinstance(exc, json.JSONDecodeError) else "요청 형식이 올바르지 않아요."})
@@ -180,6 +258,19 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         if not self.validate_origin():
             return self.respond(403, {"error": "이 주소에서 요청할 수 없어요."})
+        child = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(goals|events|memories|checkins)/([a-f0-9]{32}|\d{4}-\d{2}-\d{2})", urlparse(self.path).path)
+        if child:
+            try:
+                if not self.app.lock.acquire(blocking=False):
+                    return self.respond(409, {"error": "AI 응답이 끝난 뒤 기록을 삭제할 수 있어요."})
+                try:
+                    return self.respond(200, self.app.care.delete(*child.groups()))
+                finally:
+                    self.app.lock.release()
+            except KeyError:
+                return self.respond(404, {"error": "기록을 찾지 못했어요."})
+            except ValueError as exc:
+                return self.respond(400, {"error": str(exc)})
         match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})", urlparse(self.path).path)
         if not match:
             return self.respond(404, {"error": "요청을 찾지 못했어요."})

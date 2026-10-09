@@ -9,6 +9,7 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
+from care import CareStore
 
 
 def now() -> str:
@@ -38,6 +39,9 @@ class Store:
                 CREATE INDEX IF NOT EXISTS messages_session ON messages(session_id, seq);
                 CREATE INDEX IF NOT EXISTS memories_session ON memories(session_id, seq);
             """)
+            if "actions" not in {r[1] for r in db.execute("PRAGMA table_info(messages)")}:
+                db.execute("ALTER TABLE messages ADD COLUMN actions TEXT NOT NULL DEFAULT '[]'")
+        self.care = CareStore(self)
         self.refresh_knowledge()
 
     @contextmanager
@@ -99,8 +103,7 @@ class Store:
         for word, expansion in synonyms.items():
             if word in expanded:
                 expanded += " " + expansion
-        herb_names = {tag for r in records if r["category"] == "herb"
-                      for tag in r["tags"] if tag in {"감초", "황기", "반하", "생강", "인삼"}}
+        herb_names = {r["tags"][0] for r in records if r["category"] == "herb" and r["tags"]}
         named_herbs = {name for name in herb_names if name in query}
         ranked = []
         for record in records:
@@ -113,6 +116,17 @@ class Store:
                 ranked.append((score, record))
         ranked.sort(key=lambda item: (-item[0], item[1]["id"]))
         return [r for _, r in ranked[:limit]]
+
+    def library(self, query="", category=""):
+        if category and category not in {"concept", "lifestyle", "herb", "resource"}:
+            raise ValueError("자료 종류를 확인해 주세요.")
+        self.refresh_knowledge()
+        if query:
+            records = self.search(query, 1000)
+        else:
+            with self.connect() as db:
+                records = [json.loads(r[0]) for r in db.execute("SELECT record FROM knowledge ORDER BY id")]
+        return [r for r in records if not category or r["category"] == category]
 
     def create_session(self):
         session_id = uuid.uuid4().hex
@@ -127,17 +141,18 @@ class Store:
             if not db.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone():
                 raise KeyError(session_id)
             messages = [dict(r) for r in db.execute(
-                "SELECT id,role,content,mode,sources,created_at FROM messages WHERE session_id=? ORDER BY seq",
+                "SELECT id,role,content,mode,sources,actions,created_at FROM messages WHERE session_id=? ORDER BY seq",
                 (session_id,))]
             memories = [dict(r) for r in db.execute(
                 "SELECT id,category,summary,quote,message_id,created_at FROM memories WHERE session_id=? ORDER BY seq",
                 (session_id,))]
         for message in messages:
             message["sources"] = json.loads(message["sources"])
+            message["actions"] = json.loads(message["actions"])
         return {"id": session_id, "messages": messages, "memories": memories,
-                "knowledge_count": self.knowledge_count()}
+                "knowledge_count": self.knowledge_count(), "care": self.care.dashboard(session_id)}
 
-    def save_turn(self, session_id, message, reply, sources, memories, mode):
+    def save_turn(self, session_id, message, reply, sources, memories, mode, actions=None):
         user_id = uuid.uuid4().hex
         timestamp = now()
         with self.connect() as db:
@@ -147,9 +162,10 @@ class Store:
                 (user_id, "user", message, []),
                 (uuid.uuid4().hex, "assistant", reply, sources),
             ]:
-                db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at) VALUES (?,?,?,?,?,?,?)",
+                db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at,actions) VALUES (?,?,?,?,?,?,?,?)",
                            (item_id, session_id, role, content, mode,
-                            json.dumps(citations, ensure_ascii=False), timestamp))
+                            json.dumps(citations, ensure_ascii=False), timestamp,
+                            json.dumps(actions or [] if role == "assistant" else [], ensure_ascii=False)))
             for memory in memories:
                 db.execute("INSERT OR IGNORE INTO memories(id,session_id,category,summary,quote,message_id,created_at) VALUES (?,?,?,?,?,?,?)",
                            (uuid.uuid4().hex, session_id, memory["category"], memory["summary"],

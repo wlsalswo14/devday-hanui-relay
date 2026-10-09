@@ -12,7 +12,7 @@ async function api(path, options={}) {
   return body;
 }
 function showError(message){$("error").textContent=message||"";$("error").hidden=!message;}
-function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion").forEach(b=>b.disabled=value);}
+function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);}
 function setModeDescription(){
   $("mode-description").textContent=state.mode==="codex"?"GPT-6 Luna · High — 현재 로그인된 ChatGPT 계정으로 대화합니다.":"샘플 대화 · 실제 DB 검색 — 모델 호출 없이 화면과 생활기록을 체험합니다.";
 }
@@ -26,7 +26,7 @@ function welcome(){
   const section=node("div","welcome");const art=node("div","welcome-art");art.append(node("span","","h."));section.append(art,node("h2","","오늘, 몸과 마음은 어때요?"));
   const description=node("p","","일상을 이야기하면, 지난 맥락을 기억하고\n관련 한의학 자료를 함께 찾아봐요.");description.style.whiteSpace="pre-line";section.append(description);
   const suggestions=node("div","suggestions");
-  ["요즘 5시간 정도 자고 낮에 피곤해","미병이 뭔지 알려줘","감초 자료를 찾아줘"].forEach(text=>{const b=node("button","suggestion",text);b.type="button";b.addEventListener("click",()=>{$("message").value=text;updateCount();$("chat-form").requestSubmit();});suggestions.append(b);});section.append(suggestions);return section;
+  ["요즘 5시간 정도 자고 낮에 피곤해","미병이 뭔지 알려줘","강남역 근처 한의원 찾아줘"].forEach(text=>{const b=node("button","suggestion",text);b.type="button";b.addEventListener("click",()=>{$("message").value=text;updateCount();$("chat-form").requestSubmit();});suggestions.append(b);});section.append(suggestions);return section;
 }
 function render(){
   const messages=$("messages");messages.replaceChildren();
@@ -36,6 +36,7 @@ function render(){
     if(message.role==="assistant")label.append(node("span","mini-mark","h."));
     label.append(node("span","",message.role==="user"?"나":message.mode==="codex"?"Hanui · Luna High":"Hanui · 샘플 대화"));article.append(label,node("div","bubble",message.content));
     if(message.sources?.length){const citations=node("div","citations");message.sources.forEach((record,i)=>{const button=node("button","citation",`${i+1} · ${record.title}`);button.type="button";button.addEventListener("click",()=>openSource(record));citations.append(button);});article.append(citations);}
+    if(message.actions?.length){const actions=node("div","citations");message.actions.forEach(action=>{const button=node("button","secondary action-button",action.label||"다음 단계 보기");button.type="button";button.addEventListener("click",()=>openAction(action));actions.append(button);if(action.error)actions.append(node("p","search-note",action.error));});article.append(actions);}
     messages.append(article);
   });
   const memories=$("memories");memories.replaceChildren();$("memory-count").textContent=String(state.session.memories.length);
@@ -46,11 +47,12 @@ function render(){
   if(!records.length)sources.append(node("div","empty-note","질문에 맞는 자료를 찾으면\n출처를 여기에 모아둘게요."));
   records.forEach(record=>{const button=node("button","source-card");button.type="button";button.append(node("span","source-kind",record.evidence_level),node("strong","",record.title),node("span","source-publisher",record.publisher+" ↗"));button.addEventListener("click",()=>openSource(record));sources.append(button);});
   messages.scrollTop=messages.scrollHeight;
+  if(typeof renderCare==="function")renderCare();
 }
 function updateCount(){$("counter").textContent=`${$("message").value.length} / 2000`;}
 function ensureConsent(){
   if(state.mode!=="codex"||state.consent)return true;
-  state.consent=window.confirm("AI 대화를 위해 입력한 이야기, 최근 대화와 생활기록, 찾아온 자료를 현재 로그인된 OpenAI 계정의 모델로 전달합니다. 계속할까요?");return state.consent;
+  state.consent=window.confirm("AI 대화를 위해 입력한 이야기, 최근 대화·생활기록·체크인·일정과 찾아온 자료를 현재 로그인된 OpenAI 계정의 모델로 전달합니다. 병원·웹 검색을 요청하면 공개 검색어로 OpenAI 웹 검색을 실행합니다. 계속할까요?");return state.consent;
 }
 $("chat-form").addEventListener("submit",async event=>{
   event.preventDefault();if(state.busy||!state.session)return;const message=$("message").value.trim();if(!message)return;if(!ensureConsent())return;

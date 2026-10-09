@@ -1,55 +1,342 @@
 {
   "retrieved_at": "2026-10-09",
-  "knowledge_record_count": 7,
+  "knowledge_record_count": 42,
   "records": [
     {
       "id": "mibyung-concept-001",
       "title": "미병: 건강과 질병 사이의 상태라는 연구 보고서의 설명",
       "source_url": "https://www.bioin.or.kr/board/report/246899",
       "publisher": "국가생명공학정책연구센터 BioIN (저자 소속: 한국한의학연구원)",
-      "evidence_level": "연구 동향 보고서의 개념 설명"
+      "evidence_level": "연구 동향 보고서의 개념 설명",
+      "retrieved_at": "2026-10-09"
     },
     {
       "id": "mibyung-research-landscape-001",
       "title": "국내 미병 연구 경향과 근거의 범위",
       "source_url": "https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002495552",
       "publisher": "한국연구재단 KCI / 대한예방한의학회지",
-      "evidence_level": "국내 문헌 연구 동향 분석"
+      "evidence_level": "국내 문헌 연구 동향 분석",
+      "retrieved_at": "2026-10-09"
     },
     {
       "id": "lifestyle-guidance-001",
       "title": "한의표준임상진료지침의 생활관리 항목",
       "source_url": "https://nikom.or.kr/board/boardFile/download/24/567414/36765.do",
       "publisher": "한국한의약진흥원 국가한의임상정보포털",
-      "evidence_level": "자율신경실조증 한의표준임상진료지침 요약의 관리 정보"
+      "evidence_level": "자율신경실조증 한의표준임상진료지침 요약의 관리 정보",
+      "retrieved_at": "2026-10-09"
     },
     {
       "id": "herb-origin-glycyrrhiza-001",
       "title": "감초의 공정서상 기원과 약용 부위",
       "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
       "publisher": "한국한의약진흥원",
-      "evidence_level": "공정서 한약재 기원 정보 목록"
+      "evidence_level": "공정서 한약재 기원 정보 목록",
+      "retrieved_at": "2026-10-09"
     },
     {
       "id": "herb-origin-astragalus-001",
       "title": "황기의 공정서상 기원과 약용 부위",
       "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
       "publisher": "한국한의약진흥원",
-      "evidence_level": "공정서 한약재 기원 정보 목록"
+      "evidence_level": "공정서 한약재 기원 정보 목록",
+      "retrieved_at": "2026-10-09"
     },
     {
       "id": "herb-origin-pinellia-001",
       "title": "반하의 공정서상 기원과 가공 부위",
       "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
       "publisher": "한국한의약진흥원",
-      "evidence_level": "공정서 한약재 기원·가공 정보 목록"
+      "evidence_level": "공정서 한약재 기원·가공 정보 목록",
+      "retrieved_at": "2026-10-09"
     },
     {
       "id": "resource-nckm-001",
       "title": "국가한의임상정보포털 안내",
       "source_url": "https://kminfra.nikom.or.kr/nckm/html.do?menu_idx=177",
       "publisher": "한국한의약진흥원 한의약혁신기술개발사업단",
-      "evidence_level": "공공 임상정보 서비스 안내"
+      "evidence_level": "공공 임상정보 서비스 안내",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-001",
+      "title": "마황: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-002",
+      "title": "복령: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-003",
+      "title": "숙지황: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-004",
+      "title": "백출: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-005",
+      "title": "육계: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-006",
+      "title": "천궁: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-007",
+      "title": "용안육: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-008",
+      "title": "작약: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-009",
+      "title": "산사: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-010",
+      "title": "갈근: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-011",
+      "title": "향부자: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-012",
+      "title": "후박: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-013",
+      "title": "시호: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-014",
+      "title": "산약: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-015",
+      "title": "맥문동: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-016",
+      "title": "계지: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-017",
+      "title": "당귀: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-018",
+      "title": "황련: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-019",
+      "title": "사인: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-020",
+      "title": "택사: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-021",
+      "title": "길경: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-022",
+      "title": "황금: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-023",
+      "title": "대추: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-024",
+      "title": "구기자: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-025",
+      "title": "인삼: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-026",
+      "title": "진피: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-027",
+      "title": "오미자: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-028",
+      "title": "박하: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-029",
+      "title": "생강: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "curated-origin-030",
+      "title": "산조인: 공정서상 기원·약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "2025년 공고 첨부 공정서 기원 목록의 자체 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "nccih-licorice-root",
+      "title": "감초: 연구 근거와 일반 안전성",
+      "source_url": "https://www.nccih.nih.gov/health/licorice-root",
+      "publisher": "미국 NIH 국립보완통합건강센터 (NCCIH)",
+      "evidence_level": "공공기관 일반 근거·안전성 안내의 자체 한국어 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "nccih-astragalus",
+      "title": "황기: 연구 근거와 일반 안전성",
+      "source_url": "https://www.nccih.nih.gov/health/astragalus",
+      "publisher": "미국 NIH 국립보완통합건강센터 (NCCIH)",
+      "evidence_level": "공공기관 일반 근거·안전성 안내의 자체 한국어 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "nccih-ginger",
+      "title": "생강: 원료와 일반 안전성",
+      "source_url": "https://www.nccih.nih.gov/health/ginger",
+      "publisher": "미국 NIH 국립보완통합건강센터 (NCCIH)",
+      "evidence_level": "공공기관 일반 근거·안전성 안내의 자체 한국어 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "nccih-asian-ginseng",
+      "title": "인삼: 일반 안전성과 근거의 범위",
+      "source_url": "https://www.nccih.nih.gov/health/asian-ginseng",
+      "publisher": "미국 NIH 국립보완통합건강센터 (NCCIH)",
+      "evidence_level": "공공기관 일반 근거·안전성 안내의 자체 한국어 요약",
+      "retrieved_at": "2026-10-09"
+    },
+    {
+      "id": "nccih-stress",
+      "title": "스트레스와 생활 관찰",
+      "source_url": "https://www.nccih.nih.gov/health/stress",
+      "publisher": "미국 NIH 국립보완통합건강센터 (NCCIH)",
+      "evidence_level": "공공기관 일반 근거·안전성 안내의 자체 한국어 요약",
+      "retrieved_at": "2026-10-09"
     }
   ],
   "downloads": [
@@ -70,5 +357,38 @@
       "usage": "Local reference only; redistribution permission not asserted."
     }
   ],
-  "seed_usage": "Short original summaries linked to checked source pages; raw source documents are not included."
+  "seed_usage": "Short original summaries linked to checked source pages; raw source documents are not included.",
+  "expanded_downloads": [
+    {
+      "url": "https://www.nccih.nih.gov/health/licorice-root",
+      "file": "nccih-licorice-root.html",
+      "bytes": 520890,
+      "sha256": "ead1959a55d60d57d6288da18ee14baadc88aebcd3ceb54566a6d3ad436d8bea"
+    },
+    {
+      "url": "https://www.nccih.nih.gov/health/astragalus",
+      "file": "nccih-astragalus.html",
+      "bytes": 517611,
+      "sha256": "a3cc6f7f09298f21b32a65d9ba9393e6d16abcde5f027c4286db1e65b682b053"
+    },
+    {
+      "url": "https://www.nccih.nih.gov/health/ginger",
+      "file": "nccih-ginger.html",
+      "bytes": 518375,
+      "sha256": "2417fdb20434cdd3d1c06fd634f149a5580e21cb9db447e46d03efd0b8eee244"
+    },
+    {
+      "url": "https://www.nccih.nih.gov/health/asian-ginseng",
+      "file": "nccih-asian-ginseng.html",
+      "bytes": 519856,
+      "sha256": "531393b3cc927ed9501c01d4727bf449e69e1dcbee7f3ed3664fd257fd23d03e"
+    },
+    {
+      "url": "https://www.nccih.nih.gov/health/stress",
+      "file": "nccih-stress.html",
+      "bytes": 542177,
+      "sha256": "ff9fb536d3a7678ceb118d6b2801db79953e36cd20e0c0ace8e4d6db2ab9c29e"
+    }
+  ],
+  "curation": "30 additional herbal origin summaries reviewed against pinned 2025 NIKOM PDF; 5 NCCIH pages downloaded and summarized. No personal prescriptions."
 }

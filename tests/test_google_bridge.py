@@ -57,6 +57,27 @@ class GoogleBridgeTests(unittest.TestCase):
             with self.assertRaises(ModelError):
                 self.model().retrieval_keywords("睡眠", [])
 
+    def test_web_results_require_real_search_metadata_and_grounded_urls(self):
+        model = self.model()
+        parsed = {"summary": "Fixture", "results": [
+            {"title": "Verified", "url": "https://example.org/verified"},
+            {"title": "Invented", "url": "https://example.org/invented"}], "hospitals": []}
+        grounding = {"webSearchQueries": ["fixture"], "groundingChunks": [
+            {"web": {"uri": "https://example.org/verified"}}]}
+        response = {"candidates": [{"content": {"parts": [{"text": json.dumps(parsed)}]},
+                                   "groundingMetadata": grounding}]}
+        extraction = {"candidates": [{"content": {"parts": [{"text": json.dumps(parsed)}]}}]}
+        with patch("google_bridge.urllib.request.urlopen", side_effect=[
+                io.BytesIO(json.dumps(response).encode()), io.BytesIO(json.dumps(extraction).encode())]) as call:
+            found = model.search_web("fixture", "web")
+        self.assertEqual([r["url"] for r in found["results"]], ["https://example.org/verified"])
+        self.assertEqual(json.loads(call.call_args_list[0].args[0].data)["tools"], [{"googleSearch": {}}])
+        self.assertNotIn("tools", json.loads(call.call_args_list[1].args[0].data))
+        response["candidates"][0].pop("groundingMetadata")
+        with patch("google_bridge.urllib.request.urlopen", return_value=io.BytesIO(json.dumps(response).encode())):
+            with self.assertRaises(ModelError):
+                model.search_web("fixture", "web")
+
     @unittest.skipUnless(os.name == "nt", "Windows account-bound credentials")
     def test_dpapi_roundtrip(self):
         encrypted = protect_key(b"synthetic-key")

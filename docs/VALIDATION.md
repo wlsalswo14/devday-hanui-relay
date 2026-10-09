@@ -26,6 +26,8 @@
 
 ## 실제 OpenAI 연결 이력
 
+`ui_showcase_smoke.py`: 두 개의 합성 시연 대화를 실제 DB 구조로 준비해 네 지침·8개 체크인·75%/6일 누락, 실제 고문헌 DB 인용 두 곳, 합성 병원 카드 세 곳, 준비/합성 확정 예약, 7개 일정과 ICS, 모든 리포트 주장 근거, A4 한 페이지·PDF 링크, 320/390px 대비와 가로 넘침, 대화 분리와 상충 기록 보류를 확인했다. 모델·웹 검색·실제 병원 접수는 실행하지 않았다. `.runtime/showcase-ui-check.json`, 예시 `.runtime/showcase-report.pdf`, `showcase-*.png` 화면을 생성한다.
+
 현재 계정의 ChatGPT 로그인, `gpt-6-luna`, `high`, OpenAI provider로 확인했다.
 
 `python live_calendar_smoke.py`: 실제 Luna High와 격리된 DB·명시된 합성 병원으로 브라우저에서 8턴을 실행했다(86.9초). 일정 추가→이동→삭제, 날짜·시간 미정 시 질문과 미저장, 예약 준비→사용자의 확정 보고→시간 변경 시 준비 상태 복귀→로컬 취소를 확인했다. 월별·날짜별 표시, ICS, 재접속, 390px 모바일, 다른 대화 분리와 외부 캘린더 링크 제거도 확인했으며 콘솔 오류는 없었다. 병원에 실제 접수하지 않았다. 결과는 `.runtime/calendar-live-check.json`이다.

@@ -81,6 +81,7 @@ python ui_smoke.py
 python ui_care_smoke.py
 python ui_design_smoke.py
 python ui_guidance_smoke.py
+python ui_showcase_smoke.py
 ```
 
 브라우저 검증에는 Playwright와 Chrome 또는 Playwright Chromium이 필요하다. 앱 실행에는 필요하지 않다. 확장 UI 테스트는 격리된 DB와 명시된 합성 병원·검색 결과를 사용하므로 실제 예약이 발생하지 않는다.
@@ -106,7 +107,7 @@ python live_guidance_smoke.py
 
 ## 제출
 
-지침 입력·실천율 분모·환자 발언 검증·합성 데모 준비는 [지침과 리포트 안내](docs/GUIDANCE.md)에 정리했다. `python seed_guidance_demo.py`로 별도의 합성 대화를 만들면 네 지침·8일 기록·75% 실천율·6일 기록 없음의 화면을 바로 시연할 수 있다.
+지침 입력·실천율 분모·환자 발언 검증·합성 데모 준비는 [지침과 리포트 안내](docs/GUIDANCE.md)에 정리했다. `python seed_showcase.py`로 두 개의 합성 대화를 준비하면 지침·생활 그래프·실제 DB 고문헌 인용·합성 병원 카드·예약 상태·자체 캘린더·내원 리포트를 바로 시연할 수 있다. 기존 대화는 수정하지 않으며 같은 날 다시 실행하면 준비한 주소를 반환한다. `--new`는 별도의 새 예시를 만든다.
 
 저장소: <https://github.com/wlsalswo14/devday-hanui-relay>
 

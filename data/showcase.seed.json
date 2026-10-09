@@ -1,0 +1,20 @@
+{
+  "synthetic_only": true,
+  "label": "합성 시연 데이터 · 실제 환자·병원·예약 자료 아님",
+  "instructions": "취침 23시 전, 찬 음식 줄이기, 커피 1잔 이하, 점심 후 산책 10분",
+  "days": [
+    {"ago": 13, "met": false, "sleep": 5, "stress": 8, "energy": 3, "discomfort": 7, "meal": "아침은 거르고 점심은 먹었어", "symptom": "점심 먹고 속이 더부룩했어"},
+    {"ago": 12, "met": false, "sleep": 5.5, "stress": 7, "energy": 4, "discomfort": 6, "meal": "아침은 거르고 저녁은 늦게 먹었어", "symptom": "낮에 피곤하고 속이 더부룩했어"},
+    {"ago": 10, "met": true, "sleep": 6.5, "stress": 6, "energy": 5, "discomfort": 6, "meal": "아침에 따뜻한 죽을 먹었어", "symptom": "저녁에 속이 더부룩했어"},
+    {"ago": 8, "met": true, "sleep": 6, "stress": 6, "energy": 5, "discomfort": 5, "meal": "아침과 점심을 먹었어", "symptom": "오후에 피곤했어"},
+    {"ago": 6, "met": true, "sleep": 7, "stress": 5, "energy": 6, "discomfort": 4, "meal": "점심은 정해둔 시간에 먹었어", "symptom": "점심 후 속이 조금 더부룩했어"},
+    {"ago": 4, "met": true, "sleep": 6.5, "stress": 4, "energy": 6, "discomfort": 4, "meal": "아침과 저녁을 집에서 먹었어", "symptom": "오후에 조금 피곤했어"},
+    {"ago": 2, "met": true, "sleep": 7, "stress": 4, "energy": 7, "discomfort": 3, "meal": "아침에 밥과 국을 먹었어", "symptom": "속이 더부룩한 느낌은 조금 남아 있어"},
+    {"ago": 0, "met": true, "sleep": 7.5, "stress": 3, "energy": 7, "discomfort": 3, "meal": "아침과 점심을 챙겨 먹었어", "symptom": "저녁에 속이 조금 더부룩했어"}
+  ],
+  "hospitals": [
+    {"key": "spring", "name": "봄결 한의원 · 합성", "address": "서울 강남구 데모로 12, 2층 · 합성 주소", "reason": "합성 선택 조건: 수면·식사 생활기록을 설명할 방문과 평일 저녁 상담 시간 예시. 실제 진료 역량을 평가한 추천이 아님."},
+    {"key": "warm", "name": "온담 한의원 · 합성", "address": "서울 강남구 예시길 24, 3층 · 합성 주소", "reason": "합성 선택 조건: 내원 전 리포트를 보여주며 지침을 확인하는 재방문 장면 예시."},
+    {"key": "daily", "name": "하루 한의원 · 합성", "address": "서울 서초구 시연로 8, 1층 · 합성 주소", "reason": "합성 선택 조건: 주말 희망 일정과 생활 상담 장소를 비교하는 카드 예시."}
+  ]
+}

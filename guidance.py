@@ -177,7 +177,7 @@ class GuidanceStore:
                            (instruction,session,plan_id,goal,clause,start,end,category,json.dumps(rule),starts))
         return self.store.care.dashboard(session)
 
-    def opening(self, session, plan_id, question, mode):
+    def opening(self, session, plan_id, question, mode, sources=None):
         """An assistant-only prompt is never a patient statement or observation."""
         question=text(question,"첫 확인 질문",300)
         if not re.search(r"[가-힣]",question) or "?" not in question:
@@ -189,7 +189,7 @@ class GuidanceStore:
             if not plan: raise ValueError("현재 대화의 한의사 지침을 확인해 주세요.")
             if plan["opening_message_id"]: return plan["opening_message_id"]
             identifier=uuid.uuid4().hex
-            db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at,actions) VALUES (?,?,?,?,?,?,?,?)",(identifier,session,"assistant",question,mode,"[]",datetime.now(KST).isoformat(),"[]"))
+            db.execute("INSERT INTO messages(id,session_id,role,content,mode,sources,created_at,actions) VALUES (?,?,?,?,?,?,?,?)",(identifier,session,"assistant",question,mode,json.dumps(sources or [],ensure_ascii=False),datetime.now(KST).isoformat(),"[]"))
             db.execute("UPDATE guidance_plans SET opening_message_id=? WHERE id=?",(identifier,plan_id))
         return identifier
 

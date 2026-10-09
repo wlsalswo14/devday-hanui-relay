@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from codex_bridge import ModelError, validate_result
+from codex_bridge import CodexChat, ModelError, validate_result
 from server import App
 from store import Store
 
@@ -79,6 +79,70 @@ class RetrievalTests(unittest.TestCase):
         for reading in ["", "Original Chinese only", "해석"*201, 123]:
             with self.assertRaises(ModelError):
                 validate_result({"reply":"답변","source_ids":["classic"],"memories":[],"citations":[{"source_id":"classic","quote":"專門詞","reading":reading}]},"질문",[self.classical])
+
+    def test_required_classical_reference_rejects_empty_modern_and_untranslated(self):
+        candidates=[[],[{"source_id":"modern","quote":"현대 자료","reading":""}],
+                    [{"source_id":"classic","quote":"專門詞"}]]
+        for citations in candidates:
+            with self.subTest(citations=citations), self.assertRaises(ModelError):
+                validate_result({"reply":"답변","source_ids":[],"memories":[],"citations":citations},
+                    "질문",[self.modern,self.classical],require_classical=True)
+        valid=validate_result({"reply":"답변","source_ids":[],"memories":[],
+            "citations":[{"source_id":"classic","quote":"專門詞","reading":"전문 용어"}]},
+            "질문",[self.classical],require_classical=True)
+        self.assertEqual(valid["source_ids"],["classic"])
+
+    def test_real_model_path_persists_cited_opening_without_patient_facts(self):
+        class Grounded(CodexChat):
+            def available(self): return True
+            def execute(self, system, payload, schema, **kwargs):
+                if "keywords" in schema["properties"]:
+                    self.context=payload["CLINICIAN_CONTEXT"]
+                    return {"keywords":["專門詞"]},[]
+                return {"question":"어젯밤에는 몇 시에 주무셨어요?","citations":[
+                    {"source_id":"classic","quote":"專門詞","reading":"전문 용어"}]},[]
+        model=Grounded(self.root)
+        app=App(self.root/"opening",self.seed,model)
+        sid=app.store.create_session()["id"]
+        app.care_action(sid,"guidance",{"text":"취침 23시 전","assessment":"합성 한의사 소견",
+            "start_conversation":True,"mode":"codex"})
+        session=app.store.get_session(sid)
+        self.assertEqual([m["role"] for m in session["messages"]],["assistant"])
+        self.assertEqual(session["care"]["guidance"]["observations"],[])
+        self.assertEqual(session["memories"],[])
+        citation=session["messages"][0]["sources"][0]["citations"][0]
+        self.assertEqual(citation["reading_origin"],"luna")
+        self.assertEqual(model.context[0]["assessment"],"합성 한의사 소견")
+
+    def test_missing_classical_blocks_first_question_and_rolls_back_plan(self):
+        class Missing(CodexChat):
+            def available(self): return True
+            def retrieval_keywords(self,*args): return ["찾을수없는원문"]
+            def execute(self,*args,**kwargs): raise AssertionError("Must not generate ungrounded answer")
+        app=App(self.root/"missing",self.seed,Missing(self.root))
+        sid=app.store.create_session()["id"]
+        with self.assertRaises(ModelError):
+            app.care_action(sid,"guidance",{"text":"취침 23시 전","start_conversation":True,"mode":"codex"})
+        session=app.store.get_session(sid)
+        self.assertEqual(session["messages"],[])
+        self.assertEqual(session["care"]["guidance"]["plans"],[])
+        self.assertEqual(session["care"]["goals"],[])
+
+    def test_uncited_real_reply_cannot_mutate_calendar_or_store_turn(self):
+        class Uncited(CodexChat):
+            def available(self): return True
+            def retrieval_keywords(self,*args): return ["專門詞"]
+            def execute(self,*args,**kwargs):
+                return {"reply":"일정을 추가할게요","source_ids":[],"memories":[],"citations":[],
+                    "actions":[{"type":"event","operation":"create","title":"산책",
+                        "start":"2026-10-10T12:00:00+09:00","instruction_quote":"내일 산책 넣어줘"}]},[]
+        app=App(self.root/"uncited",self.seed,Uncited(self.root))
+        sid=app.store.create_session()["id"]
+        with self.assertRaises(ModelError):
+            app.chat(sid,{"message":"내일 산책 넣어줘","mode":"codex"})
+        session=app.store.get_session(sid)
+        self.assertEqual(session["messages"],[])
+        self.assertEqual(session["care"]["events"],[])
 
 
 if __name__ == "__main__":

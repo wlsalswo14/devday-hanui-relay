@@ -105,12 +105,20 @@ class App:
                         mode=body.get("mode","codex")
                         if mode not in {"codex","demo"}: raise ValueError("지원하지 않는 대화 방식이에요.")
                         plan=care["guidance"]["plans"][-1]
+                        citations=[]
                         if mode=="codex":
                             if not hasattr(self.model,"start_checkin"): raise ModelError("첫 확인 질문 모델이 연결되지 않았어요.")
-                            question=self.model.start_checkin(plan)
+                            if isinstance(self.model,CodexChat):
+                                keywords=self.model.retrieval_keywords(plan["body"]+" "+plan.get("assessment",""),[],[plan])
+                                sources=self.store.search_fulltext(keywords)
+                                result=self.model.start_checkin(plan,sources)
+                                question=result["reply"]
+                                citations=self.citation_records(result,sources,mode)
+                            else:
+                                question=self.model.start_checkin(plan)
                         else:
                             question="[샘플 질문] 한의사 선생님의 생활 지침을 함께 살펴볼게요. 어젯밤에는 몇 시에 주무셨어요?"
-                        self.store.guidance.opening(session_id,plan["id"],question,mode)
+                        self.store.guidance.opening(session_id,plan["id"],question,mode,citations)
                 return self.care.dashboard(session_id)
             if kind == "events":
                 return self.care.event(session_id, body, item)
@@ -189,6 +197,15 @@ class App:
         action.update(completed=True, label="캘린더에서 보기", outcome=outcome+"\n"+detail)
         return action["outcome"]
 
+    def citation_records(self, result, sources, mode):
+        citations=[dict(s) for s in sources if s["id"] in result["source_ids"]]
+        for source in citations:
+            source["citations"]=[dict(c) for c in result.get("citations",[]) if c["source_id"]==source["id"]]
+            for citation in source["citations"]:
+                if citation.get("reading"):
+                    citation["reading_origin"]="luna" if isinstance(self.model,CodexChat) and mode=="codex" else "demo"
+        return citations
+
     def chat(self, session_id, body):
         message, mode = body.get("message"), body.get("mode", "codex")
         if not isinstance(message, str) or not message.strip() or len(message) > 2000:
@@ -208,7 +225,10 @@ class App:
                 if past:
                     query += " " + past[-1]
             if mode == "codex" and hasattr(self.model, "retrieval_keywords"):
-                keywords = self.model.retrieval_keywords(message.strip(), session["messages"])
+                if isinstance(self.model,CodexChat):
+                    keywords=self.model.retrieval_keywords(message.strip(),session["messages"],session["care"]["guidance"]["plans"])
+                else:
+                    keywords = self.model.retrieval_keywords(message.strip(), session["messages"])
                 sources = self.store.search_fulltext(keywords)
             else:
                 sources = self.store.search(query)
@@ -245,12 +265,7 @@ class App:
                     # At most one web request per conversation turn.
                     if lookup:
                         break
-            citations = [s for s in sources if s["id"] in result["source_ids"]]
-            for source in citations:
-                source["citations"] = [c for c in result.get("citations", []) if c["source_id"] == source["id"]]
-                for citation in source["citations"]:
-                    if citation.get("reading"):
-                        citation["reading_origin"]="luna" if isinstance(self.model,CodexChat) and mode=="codex" else "demo"
+            citations=self.citation_records(result,sources,mode)
             with self.store.connect():
                 outcomes = []
                 if mode == "codex":

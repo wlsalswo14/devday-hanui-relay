@@ -39,7 +39,7 @@ class FixtureModel:
         return {"query": query, "summary": "자동 테스트용 합성 검색 결과입니다.",
             "provider": "synthetic test fixture — no external search", "searched_at": datetime.now(KST).isoformat(),
             "hospitals": [{"id": "f" * 32, "name": "합성 테스트한의원", "address": "합성 주소",
-                "phone": "", "website": "", "booking_url": "https://example.org/booking",
+                "phone": "02-000-0000", "website": "", "booking_url": "https://example.org/booking",
                 "source_url": "https://example.org/hospital", "reason": "검색 조건 합성 테스트",
                 "reviews": [{"summary": "합성 후기 <img src=x onerror=alert(1)>",
                              "url": "https://example.org/review", "kind": "patient_review"}]}] if kind == "hospitals" else [],
@@ -50,6 +50,7 @@ class FixtureModel:
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     problems = []
+    map_requests = []
     output = ROOT / ".runtime" / "screenshots"
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as temporary:
@@ -64,6 +65,8 @@ def main():
                 page = browser.new_page(viewport={"width": 1440, "height": 1024})
                 page.on("pageerror", lambda error: problems.append(str(error)))
                 page.on("console", lambda m: problems.append(m.text) if m.type == "error" else None)
+                page.on("request", lambda r: map_requests.append(r.url) if any(host in r.url for host in
+                    ("dapi.kakao.com", "map.kakao.com", "map.naver.com", "/api/maps", "/map.png", "/route")) else None)
                 page.goto(f"http://127.0.0.1:{server.server_port}", wait_until="networkidle")
                 page.get_by_text("오늘, 몸과 마음은 어때요?", exact=True).wait_for()
                 def unexpected_dialog(dialog):
@@ -100,7 +103,23 @@ def main():
                 page.locator("#message").press("Enter")
                 expect(page.locator(".message")).to_have_count(4)
                 expect(page.locator(".hospital-card")).to_have_count(1)
+                hospital_card = page.locator(".hospital-card")
+                expect(hospital_card).to_contain_text("합성 주소")
+                expect(hospital_card.locator(".hospital-reason")).to_have_text("검색 조건 합성 테스트")
+                assert hospital_card.get_by_role("link", name="전화 02-000-0000").get_attribute("href") == "tel:02-000-0000"
+                assert hospital_card.get_by_role("link", name="예약 페이지 ↗").get_attribute("href") == "https://example.org/booking"
+                assert hospital_card.locator("details").count() == 1
+                assert not hospital_card.locator("details").evaluate("el=>el.open")
+                assert page.locator("#visit-map, #route-panel, script[src='/maps.js'], script[src='/routes.js']").count() == 0
                 assert page.locator(".review-item img").count() == 0
+                page.screenshot(path=str(output / "desktop-hospital-cards.png"), full_page=True)
+                page.locator("#close-sidebar").click()
+                page.set_viewport_size({"width": 390, "height": 844})
+                hospital_card.scroll_into_view_if_needed()
+                assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
+                page.screenshot(path=str(output / "mobile-hospital-cards.png"), full_page=True)
+                page.set_viewport_size({"width": 1440, "height": 1024})
+                page.locator("#toggle-sidebar").click()
                 page.get_by_role("button", name="예약 준비", exact=True).click()
                 page.locator("#booking-note").fill("합성 방문 메모")
                 page.get_by_role("button", name="예약 준비 저장", exact=True).click()
@@ -112,18 +131,23 @@ def main():
                 page.get_by_role("button", name="확정 기록·일정 생성", exact=True).click()
                 expect(page.locator("#events-list .record-row")).to_have_count(1)
                 expect(page.locator("#bookings-list")).to_contain_text("예약 확정")
-                page.get_by_role("button", name="일정 추가", exact=True).click()
-                page.locator("#event-title").fill("합성 산책 일정")
+                page.get_by_role("button", name="대화", exact=True).click()
+                page.get_by_role("button", name="방문 일정 저장", exact=True).click()
+                expect(page.locator("#event-title")).to_have_value("합성 테스트한의원 방문")
+                expect(page.locator("#event-location")).to_have_value("합성 주소")
+                page.locator("#event-title").fill("합성 별도 방문 일정")
                 page.locator("#event-note").fill("개인 메모는 Google 링크에서 제외")
                 page.get_by_role("button", name="일정 저장", exact=True).click()
+                page.get_by_role("button", name="일정·예약", exact=True).click()
                 expect(page.locator("#events-list .record-row")).to_have_count(2)
-                g = page.locator("#events-list .record-row").filter(has_text="합성 산책 일정").get_by_role("link", name="Google Calendar에 추가 ↗")
+                g = page.locator("#events-list .record-row").filter(has_text="합성 별도 방문 일정").get_by_role("link", name="Google Calendar에 추가 ↗")
                 assert "개인" not in g.get_attribute("href")
                 with page.expect_download() as download:
                     page.get_by_role("button", name=".ics 내보내기", exact=True).click()
                 calendar = Path(download.value.path()).read_text(encoding="utf-8")
                 assert calendar.count("BEGIN:VEVENT") == 2
-                assert "합성 산책 일정" in calendar
+                assert "합성 별도 방문 일정" in calendar
+                assert "LOCATION:합성 주소" in calendar
                 page.screenshot(path=str(output / "desktop-calendar.png"), full_page=True)
                 page.get_by_role("button", name="대화", exact=True).click()
                 page.locator("#message").fill("공식 자료 찾아줘")
@@ -171,6 +195,10 @@ def main():
                 expect(page.locator("#checkin-history .record-row")).to_have_count(1)
                 page.locator("#new-chat").click()
                 expect(page.locator(".message")).to_have_count(0)
+                assert not map_requests, map_requests
+                for path in ("/api/maps/config", f"/api/sessions/{first_id}/places", f"/api/sessions/{first_id}/map.png", "/maps.js", "/routes.js"):
+                    assert page.request.get(f"http://127.0.0.1:{server.server_port}"+path).status == 404
+                assert page.request.post(f"http://127.0.0.1:{server.server_port}/api/sessions/{first_id}/route",data={}).status == 404
                 second_id = page.locator("#session-select").input_value()
                 assert first_id != second_id
                 expect(page.locator("#message")).to_have_value("")
@@ -224,7 +252,7 @@ def main():
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
-    report={"checks":["AI chat and searches start without prompts (synthetic fixture)","daily checkin and averages","goal completion","library and source","hospital search UI (synthetic fixture)","review text escaping","booking preparation","external user confirmation","calendar creation","ICS download","Google link excludes private notes","web search UI (synthetic fixture)","reload persistence","booking cancellation","all mobile views","JSON export","full data deletion","multiple conversations and names","independent histories and checkins","unsent draft switching","active conversation restoration","sidebar toggle and preference","mobile sidebar and Escape","delete one conversation preserves another"],"console_errors":problems}
+    report={"checks":["AI chat and searches start without prompts (synthetic fixture)","daily checkin and averages","goal completion","library and source","hospital name/address/reason cards (synthetic fixture)","phone and booking links","collapsed review text escaping","direct visit calendar draft","booking preparation","external user confirmation","calendar creation","ICS download includes visit address","Google link excludes private notes","web search UI (synthetic fixture)","reload persistence","booking cancellation","all mobile views","JSON export","full data deletion","multiple conversations and names","independent histories and checkins","unsent draft switching","active conversation restoration","sidebar toggle and preference","mobile sidebar and Escape","delete one conversation preserves another","no map/route assets or network requests","removed map/route endpoints return 404"],"console_errors":problems}
     (ROOT / ".runtime" / "ui-care-check.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report,indent=2))
 

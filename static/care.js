@@ -9,6 +9,7 @@ function link(label,url,className="external-link"){
 }
 function status(message,error=false,permanent=false){clearTimeout(toastTimer);$("tool-status").textContent=message;$("tool-status").className="toast"+(error?" toast-error":"");$("tool-status").hidden=!message;if(!permanent)toastTimer=setTimeout(()=>{$("tool-status").hidden=true;},6500);}
 function showView(view){
+  if(view!==currentView)cancelActiveRequest();
   currentView=view;document.querySelector(".conversation").hidden=view!=="chat";document.querySelector(".context").hidden=view!=="chat";
   document.querySelectorAll(".tool-view").forEach(p=>p.hidden=p.id!==`${view}-view`);
   document.querySelectorAll(".app-nav button").forEach(b=>{const selected=b.dataset.view===view;b.classList.toggle("active",selected);if(selected)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
@@ -30,8 +31,9 @@ function openAction(action){
 }
 async function runTool(task,message="저장하고 있어요…"){
   if(state.busy||!state.session)return;busy(true);status(message,false,true);
+  const generation=uiGeneration;
   try{const result=await task();if(result?.checkins){state.session.care=result;renderCare();}status("완료했어요.");return result;}
-  catch(error){status(error.message,true);return null;}finally{busy(false);}
+  catch(error){if(generation===uiGeneration&&error.name!=="AbortError")status(error.message,true);return null;}finally{if(generation===uiGeneration)busy(false);}
 }
 function post(suffix,body){return api(sessionPath(suffix),{method:"POST",body:JSON.stringify(body)});}
 function formatTime(value){return new Date(value).toLocaleString("ko-KR",{month:"short",day:"numeric",weekday:"short",hour:"2-digit",minute:"2-digit"});}

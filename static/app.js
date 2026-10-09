@@ -10,14 +10,30 @@ function sourceName(record){return record.category==="classical"?`${record.book}
 function revealEditor(id){const editor=$(id);if(editor)editor.open=true;}
 function savedId(){try{return localStorage.getItem("hanui_session");}catch{return null;}}
 function saveId(id){try{localStorage.setItem("hanui_session",id);}catch{/* In-memory session remains usable. */}}
+let activeAI=null, uiGeneration=0;
+function cancelActiveRequest(){
+  if(!activeAI)return;
+  const request=activeAI;activeAI=null;uiGeneration++;request.controller.abort();
+  const url=`/api/requests/${request.id}/cancel`,body="{}";
+  if(!navigator.sendBeacon(url,new Blob([body],{type:"application/json"})))fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body,keepalive:true}).catch(()=>{});
+  busy(false);showError("");if(typeof status==="function")status("");
+}
+window.addEventListener("pagehide",cancelActiveRequest);
+document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelActiveRequest();});
 async function api(path, options={}) {
+  let request=null;
+  const ai=options.method==="POST"&&/\/(chat|hospitals|web|guidance)$/.test(path)&&(!path.endsWith("/guidance")||JSON.parse(options.body||"{}").start_conversation);
+  if(ai){request={id:crypto.randomUUID().replaceAll("-",""),controller:new AbortController()};activeAI=request;options={...options,signal:request.controller.signal,body:JSON.stringify({...JSON.parse(options.body||"{}"),request_id:request.id})};busy(true);}
+  try{
   const response=await fetch(path,{headers:{"Content-Type":"application/json"},...options});
   let body;try{body=await response.json();}catch{throw new Error("서버 응답을 읽지 못했어요.");}
+  if(request?.controller.signal.aborted)throw new DOMException("Cancelled","AbortError");
   if(!response.ok){const error=new Error(body.error||"요청을 처리하지 못했어요.");error.status=response.status;throw error;}
   return body;
+  }finally{if(request&&activeAI===request)activeAI=null;}
 }
 function showError(message){$("error").textContent=message||"";$("error").hidden=!message;}
-function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("session-select").disabled=value;$("new-chat").disabled=value;$("rename-chat").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);}
+function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("session-select").disabled=value&&!activeAI;$("new-chat").disabled=value&&!activeAI;$("rename-chat").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);}
 function syncSidebar(){const chat=!document.querySelector(".conversation").hidden;$("context-sidebar").hidden=!chat||!state.sidebarOpen;$("toggle-sidebar").hidden=!chat;$("toggle-sidebar").textContent="기록·자료";$("toggle-sidebar").setAttribute("aria-expanded",String(chat&&state.sidebarOpen));document.querySelector(".workspace").classList.toggle("sidebar-collapsed",!state.sidebarOpen);$("sidebar-backdrop").hidden=!chat||!state.sidebarOpen;}
 function toggleSidebar(open){if(!open&&$("context-sidebar").contains(document.activeElement))$("toggle-sidebar").focus();state.sidebarOpen=open;try{localStorage.setItem("hanui_sidebar_v2",open?"open":"closed");}catch{}syncSidebar();}
 $("toggle-sidebar").addEventListener("click",()=>toggleSidebar(!state.sidebarOpen));
@@ -26,8 +42,8 @@ $("sidebar-backdrop").addEventListener("click",()=>toggleSidebar(false));
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!document.querySelector("dialog[open]"))toggleSidebar(false);});
 async function refreshSessions(){state.sessions=(await api("/api/sessions")).sessions;const select=$("session-select");select.replaceChildren();state.sessions.forEach(s=>{const option=node("option","",s.title);option.value=s.id;select.append(option);});select.value=state.session?.id||"";}
 function useSession(session){if(state.session)state.drafts[state.session.id]=$("message").value;state.session=session;saveId(session.id);$("message").value=state.drafts[session.id]||"";updateCount();$("checkin-date").value="";$("goal-title").value="";selectedHospital=null;confirmingBooking=null;editingEvent=null;document.querySelectorAll("dialog[open]").forEach(d=>d.close());showError("");render();$("session-select").value=session.id;}
-$("session-select").addEventListener("change",async()=>{if(state.busy)return;const id=$("session-select").value;busy(true);try{useSession(await api(`/api/sessions/${id}`));}catch(e){showError(e.message);$("session-select").value=state.session.id;}finally{busy(false);}});
-$("new-chat").addEventListener("click",async()=>{if(state.busy)return;busy(true);try{useSession(await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();showView("chat");}catch(e){showError(e.message);}finally{busy(false);$("message").focus();}});
+$("session-select").addEventListener("change",async()=>{cancelActiveRequest();if(state.busy)return;const id=$("session-select").value;busy(true);try{useSession(await api(`/api/sessions/${id}`));}catch(e){showError(e.message);$("session-select").value=state.session.id;}finally{busy(false);}});
+$("new-chat").addEventListener("click",async()=>{cancelActiveRequest();if(state.busy)return;busy(true);try{useSession(await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();showView("chat");}catch(e){showError(e.message);}finally{busy(false);$("message").focus();}});
 $("rename-chat").addEventListener("click",()=>{if(state.busy||!state.session)return;$("session-title").value=state.session.title;$("rename-dialog").showModal();$("session-title").focus();});
 $("rename-form").addEventListener("submit",async e=>{e.preventDefault();if(state.busy)return;busy(true);try{state.session=await api(`/api/sessions/${state.session.id}/title`,{method:"POST",body:JSON.stringify({title:$("session-title").value})});await refreshSessions();$("rename-dialog").close();}catch(e){showError(e.message);}finally{busy(false);}});
 function setModeDescription(){
@@ -87,9 +103,11 @@ function updateCount(){$("counter").textContent=`${$("message").value.length} / 
 async function send(override=null){
   if(state.busy||!state.session)return false;const message=(typeof override==="string"?override:$("message").value).trim();if(!message)return false;
   showError("");busy(true);
+  const generation=uiGeneration;
   try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode})});if(override===null){$("message").value="";updateCount();}render();await refreshSessions();return true;}
-  catch(error){showError(error.message);return false;}finally{busy(false);if(override===null)$("message").focus();}
+  catch(error){if(generation===uiGeneration&&error.name!=="AbortError")showError(error.message);return false;}finally{if(generation===uiGeneration){busy(false);if(override===null)$("message").focus();}}
 }
+$("stop-response").addEventListener("click",cancelActiveRequest);
 $("chat-form").addEventListener("submit",event=>{event.preventDefault();send();});
 $("message").addEventListener("input",updateCount);
 $("message").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();$("chat-form").requestSubmit();}});

@@ -9,6 +9,8 @@ import urllib.request
 from pathlib import Path
 
 from codex_bridge import CodexChat, ModelError
+from google_transport import send
+from request_lifecycle import check_cancelled
 
 MODEL = "gemma-4-26b-a4b-it"
 EFFORT = "high"
@@ -57,6 +59,7 @@ class GemmaChat(CodexChat):
         return bool(self.key)
 
     def execute(self, system, payload, schema, web=False):
+        check_cancelled()
         if not self.key:
             raise ModelError("Gemma 연결 키가 설정되지 않았어요.")
         # Do not describe Codex-only tools in the Google prompt. All DB and calendar
@@ -82,8 +85,7 @@ class GemmaChat(CodexChat):
             data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
             headers={"Content-Type": "application/json", "x-goog-api-key": self.key}, method="POST")
         try:
-            with urllib.request.urlopen(request, timeout=180) as response:
-                result = json.load(response)
+            result = send(request)
         except urllib.error.HTTPError as exc:
             # Never expose provider bodies, which can echo the credential or patient text.
             exc.close()

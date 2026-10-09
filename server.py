@@ -11,6 +11,7 @@ from urllib.parse import urlparse, parse_qs
 
 from codex_bridge import CodexChat, ModelError
 from google_bridge import GemmaChat, MODEL, EFFORT
+from request_lifecycle import RequestManager, RequestCancelled, check_cancelled
 from store import Store
 from care import text, local_time
 
@@ -73,6 +74,7 @@ class App:
         self.model = model or GemmaChat(runtime)
         self.codex_enabled = self.model.available()
         self.lock = threading.Lock()
+        self.requests = RequestManager()
         self.care = self.store.care
 
     def web_search(self, session_id, body, kind):
@@ -80,19 +82,23 @@ class App:
         query = text(body.get("query"), "검색어", 350)
         if not hasattr(self.model, "search_web"):
             raise ModelError("웹 검색 모델이 연결되지 않았어요.")
-        if not self.lock.acquire(blocking=False):
+        if not self.lock.acquire(timeout=.5):
             raise ValueError("이전 AI 응답을 기다리고 있어요.")
         try:
             if isinstance(self.model, CodexChat):
                 self.model.lookup_context = {}
             result = self.model.search_web(query, kind)
-            self.care.save_search(session_id, kind, result)
-            return self.care.dashboard(session_id)
+            with self.store.connect():
+                check_cancelled()
+                self.care.save_search(session_id, kind, result)
+                dashboard = self.care.dashboard(session_id)
+                check_cancelled()
+                return dashboard
         finally:
             self.lock.release()
 
     def care_action(self, session_id, kind, body, item=None):
-        if not self.lock.acquire(blocking=False):
+        if not self.lock.acquire(timeout=.5):
             raise ValueError("AI 응답이 끝난 뒤 기록을 변경할 수 있어요.")
         try:
             if kind == "checkins" and not item:
@@ -119,7 +125,9 @@ class App:
                                 question=self.model.start_checkin(plan)
                         else:
                             question="[샘플 질문] 한의사 선생님의 생활 지침을 함께 살펴볼게요. 어젯밤에는 몇 시에 주무셨어요?"
+                        check_cancelled()
                         self.store.guidance.opening(session_id,plan["id"],question,mode,citations)
+                    check_cancelled()
                 return self.care.dashboard(session_id)
             if kind == "events":
                 return self.care.event(session_id, body, item)
@@ -213,7 +221,7 @@ class App:
             raise ValueError("1~2,000자 안에서 이야기를 입력해 주세요.")
         if mode not in {"codex", "demo"}:
             raise ValueError("지원하지 않는 대화 방식이에요.")
-        if not self.lock.acquire(blocking=False):
+        if not self.lock.acquire(timeout=.5):
             raise ValueError("이전 답변을 기다리고 있어요. 답변이 끝나면 이어서 이야기해 주세요.")
         try:
             session = self.store.get_session(session_id)
@@ -243,6 +251,7 @@ class App:
                 self.model.care_context["patient_observations"] = care["guidance"]["observations"][-20:]
             responder = self.model.respond if mode == "codex" else demo_response
             result = responder(message.strip(), session["messages"], session["memories"], sources)
+            check_cancelled()
             actions = result.get("actions", [])
             observations = self.store.guidance.validate(session_id, message.strip(), result.get("observations", []))
             # Luna selects read-only information tasks from the conversation.
@@ -256,11 +265,13 @@ class App:
                             if isinstance(self.model, CodexChat):
                                 self.model.lookup_context = {"question": message.strip(), "db_records": sources}
                             found = self.model.search_web(action["query"][:350], kind)
-                            action["search_id"] = self.care.save_search(session_id, kind, found)
+                            check_cancelled()
                             action["result"] = found
                             action["completed"] = True
                             action["label"] = "찾아본 정보"
                             result["reply"] += "\n\n" + found["summary"]
+                        except RequestCancelled:
+                            raise
                         except ModelError:
                             action["error"] = "정보를 확인하지 못했어요. 대화에서 다시 요청해 주세요."
                     # At most one web request per conversation turn.
@@ -268,6 +279,10 @@ class App:
                         break
             citations=self.citation_records(result,sources,mode)
             with self.store.connect():
+                check_cancelled()
+                for action in actions:
+                    if action.get("completed") and action.get("type") in {"hospitals","web"}:
+                        action["search_id"] = self.care.save_search(session_id, action["type"], action["result"])
                 outcomes = []
                 if mode == "codex":
                     for action in actions:
@@ -278,8 +293,10 @@ class App:
                         result["reply"] += "\n\n"+"\n\n".join(outcomes)
                     else:
                         result["reply"] = "\n\n".join(outcomes)
-                return self.store.save_turn(session_id, message.strip(), result["reply"], citations,
+                saved = self.store.save_turn(session_id, message.strip(), result["reply"], citations,
                                             result["memories"], mode, actions, observations)
+                check_cancelled()
+                return saved
         finally:
             self.lock.release()
 
@@ -380,6 +397,10 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 raise ValueError("요청 형식이 올바르지 않아요.")
             path = urlparse(self.path).path
+            cancel = re.fullmatch(r"/api/requests/([a-f0-9]{32})/cancel", path)
+            if cancel:
+                self.app.requests.cancel(cancel[1])
+                return self.respond(200, {"cancelled": True})
             if path == "/api/sessions":
                 return self.respond(201, self.app.store.create_session())
             match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/title", path)
@@ -392,18 +413,25 @@ class Handler(BaseHTTPRequestHandler):
                     self.app.lock.release()
             match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/chat", path)
             if match:
-                return self.respond(200, self.app.chat(match[1], body))
+                with self.app.requests.scope(self.connection, body.get("request_id")):
+                    return self.respond(200, self.app.chat(match[1], body))
             match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(checkins|goals|events|bookings|hospitals|web|guidance)(?:/([a-f0-9]{32}))?", path)
             if match:
                 session_id, kind, item = match.groups()
                 if kind in {"hospitals", "web"} and not item:
-                    return self.respond(200, self.app.web_search(session_id, body, kind))
+                    with self.app.requests.scope(self.connection, body.get("request_id")):
+                        return self.respond(200, self.app.web_search(session_id, body, kind))
+                if kind == "guidance" and body.get("start_conversation"):
+                    with self.app.requests.scope(self.connection, body.get("request_id")):
+                        return self.respond(200, self.app.care_action(session_id, kind, body, item))
                 return self.respond(200, self.app.care_action(session_id, kind, body, item))
             return self.respond(404, {"error": "요청을 찾지 못했어요."})
         except (ValueError, json.JSONDecodeError) as exc:
             return self.respond(400, {"error": str(exc) if not isinstance(exc, json.JSONDecodeError) else "요청 형식이 올바르지 않아요."})
         except KeyError:
             return self.respond(404, {"error": "대화를 찾지 못했어요."})
+        except RequestCancelled as exc:
+            return self.respond(499, {"error": str(exc)})
         except ModelError as exc:
             return self.respond(503, {"error": str(exc)})
         except Exception:

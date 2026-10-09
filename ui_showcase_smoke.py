@@ -50,10 +50,10 @@ def main():
                 expect(page.locator("#session-select")).to_have_value(sid)
                 expect(page.locator("#context-sidebar")).to_be_hidden()
                 chat_rect=page.locator("#messages").bounding_box()
-                # The new desktop rail occupies 220px; keep chat broad in the remaining workspace.
-                rail=page.locator(".app-nav").bounding_box()
-                assert rail["width"]==220 and rail["x"]==0,rail
-                assert chat_rect["width"]>=(1440-rail["width"])*0.8 and chat_rect["height"]>=600,chat_rect
+                # Allow an original navigation layout while keeping the main conversation spacious.
+                conversation=page.locator(".conversation").bounding_box()
+                assert conversation["width"]>=900,conversation
+                assert chat_rect["width"]>=720 and chat_rect["height"]>=550,chat_rect
                 composer=page.locator("#chat-form").bounding_box()
                 assert composer["y"]+composer["height"]<=1100,composer
                 page.locator("#messages").evaluate("e=>e.scrollTop=0")

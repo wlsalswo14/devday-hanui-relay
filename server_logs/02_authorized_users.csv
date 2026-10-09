@@ -1,0 +1,2 @@
+﻿"participant_alias","account_alias","server_alias","access_method","public_key_fingerprint","role","sharing_status","notes"
+"MEMBER_01","ACCOUNT_01","SERVER_01","Local Codex execution; current Windows session Console","N/A","Project developer and local demo operator","Not independently verified","No SSH configured by this project; historical remote access is limited to 03 collection results"

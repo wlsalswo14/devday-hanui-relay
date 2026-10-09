@@ -1,0 +1,12 @@
+﻿# Hanui team-scoped Windows authentication/session excerpt
+# UTC timestamps; aliases replace account, host, IP and session identifiers
+# requested_interval=2026-10-09T00:00:00.0000000+09:00 .. 2026-10-09T14:57:51.1591720+09:00
+# Start is a conservative whole-day collection boundary; actual work start is not established
+# collection_channel=Microsoft-Windows-TerminalServices-LocalSessionManager/Operational status=available enabled=True matching_events=3
+# collection_channel=Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational status=no_matching_events_in_readable_channel enabled=True matching_events=0
+# collection_channel=Security status=collection_unavailable enabled= matching_events=N/A
+# An unavailable channel is not evidence of zero connections. No failure IPs or inferred IPs are listed.
+timestamp_utc,server_alias,account_alias,source_ip_alias,protocol,event_channel,event_id,event_record_id,state,session_alias
+"2026-10-08T22:59:12.8514358Z","SERVER_01","ACCOUNT_01","N/A","LOCAL_OR_UNDETERMINED","Microsoft-Windows-TerminalServices-LocalSessionManager/Operational","23","32821","logoff","SESSION_01"
+"2026-10-09T00:36:56.5940079Z","SERVER_01","ACCOUNT_01","N/A","LOCAL_OR_UNDETERMINED","Microsoft-Windows-TerminalServices-LocalSessionManager/Operational","21","32826","session_logon_success","SESSION_01"
+"2026-10-09T00:36:56.7422426Z","SERVER_01","ACCOUNT_01","N/A","LOCAL_OR_UNDETERMINED","Microsoft-Windows-TerminalServices-LocalSessionManager/Operational","22","32827","shell_start","SESSION_01"

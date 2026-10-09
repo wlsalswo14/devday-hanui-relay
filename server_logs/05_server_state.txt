@@ -1,0 +1,19 @@
+﻿Collected_at_KST: 2026-10-09T14:57:51.1591720+09:00
+Collected_at_UTC: 2026-10-09T05:57:51.1591720Z
+Scope: SERVER_01 / Hanui Relay project only; interim snapshot, not 17:00 final snapshot
+OS: Microsoft Windows 11 Pro / 10.0.26200
+Observed_execution_account: ACCOUNT_01 / MEMBER_01
+Current_session_kind: Console
+Team_accessible_accounts: ACCOUNT_01 observed; other account permissions and account sharing not verified
+Project_process: PROCESS_01 / python / running
+Project_process_started_UTC: 2026-10-09T05:52:41.9856741Z
+Project_listener: LOOPBACK_01 / TCP 8765 / loopback_only=True
+Project_containers: none created or started in observed project work; system-wide inventory not collected
+External_project_deployment: none performed in observed project work
+Deployed_code_SHA_before_evidence_commit: dbe836ed1816c4d6946d7ba2e5197fd105ca4b2b
+Working_tree_changed_before_evidence_generation: False
+Excluded_runtime: local SQLite, synthetic demo, model request files and validation artifacts; not committed
+Secrets_or_process_arguments_collected: no
+Security_log_collection: unavailable; does not imply zero connections
+Raw_materials: team event fields and alias map kept outside repository with access restricted to current account and SYSTEM
+Public_materials: aliases only; use evidence commit SHA separately for submission

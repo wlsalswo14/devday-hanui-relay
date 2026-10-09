@@ -19,12 +19,18 @@ ROOT=Path(__file__).resolve().parent
 
 def cited_classics(store):
     records=store.library(category="classical")
+    prepared=json.loads((ROOT/"data"/"showcase.seed.json").read_text(encoding="utf-8")).get("classical_readings",{})
     selected=[]
     for choices in [("食飲有節，起居有常", "飮食有節，起居有常"),("不治已病治未病", "不治已病，治未病", "治未病")]:
         found=next(((r,q) for r in records for q in choices if q in r["body"] and r["id"] not in {s["id"] for s in selected}),None)
         if not found:raise ValueError("시연할 실제 고문헌 원문을 DB에서 찾지 못했어요.")
         record,quote=found
-        citation=validate_result({"reply":"실제 DB 원문 인용의 합성 시연", "source_ids":[record["id"]], "memories":[], "actions":[], "citations":[{"source_id":record["id"],"quote":quote}]},"고문헌 시연",[record])["citations"]
+        reading=next((c for c in prepared.get("citations",[]) if c["source_id"]==record["id"] and c["quote"]==quote),None)
+        candidate={"source_id":record["id"],"quote":quote}
+        if reading:candidate["reading"]=reading["reading"]
+        citation=validate_result({"reply":"실제 DB 원문 인용의 합성 시연", "source_ids":[record["id"]], "memories":[], "actions":[], "citations":[candidate]},"고문헌 시연",[record])["citations"]
+        if reading and (prepared.get("model"),prepared.get("effort"),prepared.get("provider"))==("gpt-6-luna","high","openai"):
+            citation[0]["reading_origin"]="luna"
         selected.append({**record,"citations":citation})
     return selected
 
@@ -71,7 +77,7 @@ def build_showcase(store,end=None):
             store.care.event(sid,{"title":"점심 후 산책 · 합성", "start":start.isoformat(),"end":(start+timedelta(minutes=15)).isoformat(),"note":"합성 생활 일정 · 점심 후 산책 지침의 다음 실천"})
         store.care.event(sid,{"title":"리포트 확인·방문 준비 · 합성","start":(desired-timedelta(hours=1)).isoformat(),"end":(desired-timedelta(minutes=45)).isoformat(),"note":"합성 준비 일정 · 지침 원문, 누락 날짜, 수면·식사 발언을 확인"})
         actions=[{"type":"hospitals","label":"합성 병원 카드","completed":True,"search_id":search_id,"result":found},{"type":"records","label":"내원 전 리포트 보기"},{"type":"calendar","label":"자체 캘린더·방문 준비 보기"}]
-        store.save_turn(sid,"[합성 시연 질문] 지금까지의 생활기록과 자료를 내원 준비로 연결해줘.","합성 시연 데이터가 준비됐어요.\n\n14일 중 8일의 생활 발언이 있고, 네 지침은 각각 8일 중 6일 준수로 75%예요. 기록 없는 6일은 채우지 않았어요.\n\n아래에서 실제 고문헌 DB 원문을 확인하고, 내원 리포트와 자체 캘린더를 열어보세요. 병원 세 곳과 준비·확정 상태는 합성 예시이며 실제 검색이나 예약을 실행하지 않았어요.",classics,[],"demo",actions=actions)
+        store.save_turn(sid,"[합성 시연 질문] 지금까지의 생활기록과 자료를 내원 준비로 연결해줘.","8일 기록 · 지침 실천율 75%\n리포트와 방문 준비를 확인해 보세요. 병원·예약은 합성 예시예요.",classics,[],"demo",actions=actions)
         other=store.create_session()["id"]
         store.rename_session(other,"합성 데모 B · 기록 없음·상충")
         store.guidance.create(other,{"text":"취침 23시 전, 커피 1잔 이하","author":"시연 한의사 · 합성 지침","starts_on":(end-timedelta(days=13)).isoformat()})

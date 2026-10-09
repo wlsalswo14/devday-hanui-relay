@@ -24,7 +24,7 @@ class FixtureModel:
         if "고문헌" in message and sources:
             s = next((s for s in sources if s["category"] == "classical"), sources[0])
             return validate_result({"reply": "합성 테스트: 원문을 확인했어요.", "source_ids": [s["id"]],
-                "citations": [{"source_id": s["id"], "quote": s["body"][:80]}], "memories": [], "actions": []}, message, sources)
+                "citations": [{"source_id": s["id"], "quote": s["body"][:80], "reading": "수면과 일상생활에 관한 합성 테스트 해석이에요."}], "memories": [], "actions": []}, message, sources)
         result = demo_response(message, history, memories, sources)
         result["reply"] = "합성 테스트 응답: " + result["reply"]
         if "한의원" in message or "공식 자료" in message:
@@ -76,7 +76,8 @@ def main():
                 page.locator("#message").fill("미병이 뭐야?")
                 page.locator("#message").press("Enter")
                 expect(page.locator(".message")).to_have_count(2)
-                page.get_by_role("button", name="생활 관리", exact=True).click()
+                page.locator('.app-nav [data-view="daily"]').click()
+                page.locator("#checkin-editor > summary").click()
                 page.locator("#checkin-sleep").fill("6.5")
                 page.locator("#checkin-stress").fill("4")
                 page.locator("#checkin-energy").fill("6")
@@ -84,13 +85,14 @@ def main():
                 page.get_by_role("button", name="체크인 저장", exact=True).click()
                 expect(page.locator("#checkin-history .record-row")).to_have_count(1)
                 expect(page.locator("#daily-summary")).to_contain_text("6.5")
+                page.locator("#goal-editor > summary").click()
                 page.locator("#goal-title").fill("합성 목표: 10분 산책")
                 page.get_by_role("button", name="목표 추가", exact=True).click()
                 expect(page.locator("#goals-list .goal-row")).to_have_count(1)
                 page.locator("#goals-list input").check()
                 expect(page.locator("#goals-list")).to_contain_text("누적 1일 실천")
                 page.screenshot(path=str(output / "desktop-daily.png"), full_page=True)
-                page.get_by_role("button", name="한의학 DB", exact=True).click()
+                page.locator('.app-nav [data-view="library"]').click()
                 expect(page.locator("#library-results .library-record")).to_have_count(app.store.knowledge_count())
                 page.locator("#library-query").fill("인삼")
                 page.locator("#library-form").get_by_role("button", name="검색", exact=True).click()
@@ -108,12 +110,13 @@ def main():
                 expect(hospital_card.locator(".hospital-reason")).to_have_text("검색 조건 합성 테스트")
                 assert hospital_card.get_by_role("link", name="전화 02-000-0000").get_attribute("href") == "tel:02-000-0000"
                 assert hospital_card.get_by_role("link", name="예약 페이지 ↗").get_attribute("href") == "https://example.org/booking"
-                assert hospital_card.locator("details").count() == 1
-                assert not hospital_card.locator("details").evaluate("el=>el.open")
+                assert hospital_card.locator(".hospital-details").count() == 1
+                assert hospital_card.locator(".review-section").count() == 1
+                assert not hospital_card.locator(".hospital-details").evaluate("el=>el.open")
                 assert page.locator("#visit-map, #route-panel, script[src='/maps.js'], script[src='/routes.js']").count() == 0
                 assert page.locator(".review-item img").count() == 0
                 page.screenshot(path=str(output / "desktop-hospital-cards.png"), full_page=True)
-                page.locator("#close-sidebar").click()
+                if page.locator("#context-sidebar").is_visible():page.locator("#close-sidebar").click()
                 page.set_viewport_size({"width": 390, "height": 844})
                 hospital_card.scroll_into_view_if_needed()
                 assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
@@ -132,6 +135,7 @@ def main():
                 expect(page.locator("#events-list .record-row")).to_have_count(1)
                 expect(page.locator("#bookings-list")).to_contain_text("예약 확정")
                 page.get_by_role("button", name="대화", exact=True).click()
+                page.locator(".hospital-details > summary").click()
                 page.get_by_role("button", name="방문 일정 저장", exact=True).click()
                 expect(page.locator("#event-title")).to_have_value("합성 테스트한의원 방문")
                 expect(page.locator("#event-location")).to_have_value("합성 주소")
@@ -169,16 +173,16 @@ def main():
                 expect(page.locator("#events-list .record-row")).to_have_count(1)
                 expect(page.locator("#bookings-list")).to_contain_text("취소 기록")
                 page.set_viewport_size({"width": 390, "height": 844})
-                for view in ["생활 관리", "한의학 DB", "일정·예약", "대화"]:
-                    page.locator(".app-nav").get_by_role("button", name=view, exact=True).click()
+                for view in ["daily", "library", "calendar", "chat"]:
+                    page.locator(f'.app-nav [data-view="{view}"]').click()
                     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), view
                 # The mobile sidebar is an overlay; dismiss it before navigation.
                 if page.locator("#context-sidebar").is_visible():
                     page.get_by_role("button", name="사이드바 닫기", exact=True).click()
-                page.get_by_role("button", name="생활 관리", exact=True).click()
+                page.locator('.app-nav [data-view="daily"]').click()
                 page.screenshot(path=str(output / "mobile-daily.png"), full_page=True)
                 with page.expect_download() as export:
-                    page.get_by_role("button", name="내 기록 내보내기", exact=True).click()
+                    page.locator("#export-records").click()
                 data = json.loads(Path(export.value.path()).read_text(encoding="utf-8"))
                 assert data["care"]["checkins"][0]["sleep"] == 6.5
                 page.once("dialog", lambda d: d.accept())
@@ -194,7 +198,9 @@ def main():
                 page.locator("#message").press("Enter")
                 expect(page.locator(".message")).to_have_count(2)
                 page.locator("#message").fill("첫 대화의 작성 중 메시지")
-                page.get_by_role("button", name="생활 관리", exact=True).click()
+                page.locator('.app-nav [data-view="daily"]').click()
+                if not page.locator("#checkin-editor").evaluate("e=>e.open"):
+                    page.locator("#checkin-editor > summary").click()
                 page.locator("#checkin-sleep").fill("6")
                 page.get_by_role("button", name="체크인 저장", exact=True).click()
                 expect(page.locator("#checkin-history .record-row")).to_have_count(1)
@@ -219,7 +225,7 @@ def main():
                 expect(page.locator("#message")).to_have_value("첫 대화의 작성 중 메시지")
                 expect(page.locator(".message.user")).to_contain_text("5시간")
                 expect(page.locator(".memory-card")).to_contain_text("5시간")
-                page.get_by_role("button", name="생활 관리", exact=True).click()
+                page.locator('.app-nav [data-view="daily"]').click()
                 expect(page.locator("#checkin-history .record-row")).to_have_count(1)
                 page.locator("#session-select").select_option(second_id)
                 expect(page.locator("#message")).to_have_value("두 번째 대화의 초안")
@@ -238,7 +244,7 @@ def main():
                 page.locator("#toggle-sidebar").click()
                 expect(page.locator("#context-sidebar")).to_be_visible()
                 page.screenshot(path=str(output / "desktop-conversations.png"), full_page=True)
-                page.locator("#close-sidebar").click()
+                if page.locator("#context-sidebar").is_visible():page.locator("#close-sidebar").click()
                 page.set_viewport_size({"width": 390, "height": 844})
                 page.locator("#toggle-sidebar").click()
                 expect(page.locator("#context-sidebar")).to_be_visible()

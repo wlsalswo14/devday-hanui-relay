@@ -50,6 +50,7 @@ def main():
                 page.get_by_role("button",name="지침·개인 목표 저장",exact=True).click()
                 expect(page.locator("#guidance-dialog")).to_be_hidden()
                 expect(page.locator(".clinician-goal")).to_have_count(4)
+                page.locator(".clinician-goal .record-details > summary").first.click()
                 page.locator(".clinician-goal").first.get_by_role("button",name="지침 원문",exact=True).click()
                 expect(page.locator("#patient-evidence-body")).to_contain_text(original)
                 expect(page.locator("#patient-evidence-body mark")).to_have_text("취침 23시 전")
@@ -118,6 +119,7 @@ def main():
                 # Ending a goal preserves its historical instruction and citations.
                 page.locator('.app-nav [data-view="daily"]').click()
                 page.once("dialog",lambda d:d.accept())
+                page.locator(".clinician-goal .record-details > summary").first.click()
                 page.locator(".clinician-goal").first.get_by_role("button",name="지침 종료",exact=True).click()
                 expect(page.locator(".clinician-goal")).to_have_count(3)
                 page.locator('.app-nav [data-view="report"]').click()

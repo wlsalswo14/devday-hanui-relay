@@ -64,6 +64,22 @@ class RetrievalTests(unittest.TestCase):
         self.assertEqual(citation["citations"][0]["quote"], "專門詞")
         self.assertEqual(app.store.get_session(sid)["messages"], result["messages"])
 
+    def test_korean_reading_is_separate_from_exact_original_and_persisted(self):
+        reading="원문의 전문 용어에 관한 구절이에요."
+        result=validate_result({"reply":"답변","source_ids":["classic"],"memories":[],"citations":[{"source_id":"classic","quote":"專門詞","reading":reading}]},"질문",[self.classical])
+        citation=result["citations"][0]
+        self.assertEqual(citation["reading"],reading)
+        self.assertEqual(self.classical["body"][citation["offset_start"]:citation["offset_end"]],citation["quote"])
+        source={**self.classical,"citations":[citation]}
+        sid=self.store.create_session()["id"]
+        self.store.save_turn(sid,"질문","답변",[source],[],"demo")
+        self.assertEqual(self.store.get_session(sid)["messages"][-1]["sources"][0]["citations"][0]["reading"],reading)
+
+    def test_fresh_classical_reading_must_be_bounded_korean_text(self):
+        for reading in ["", "Original Chinese only", "해석"*201, 123]:
+            with self.assertRaises(ModelError):
+                validate_result({"reply":"답변","source_ids":["classic"],"memories":[],"citations":[{"source_id":"classic","quote":"專門詞","reading":reading}]},"질문",[self.classical])
+
 
 if __name__ == "__main__":
     unittest.main()

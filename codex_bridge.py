@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import uuid
@@ -49,13 +50,21 @@ body as the original text and summary only as an editorial reading. Never presen
 claims as modern clinical evidence. Organize relevant passages/items to answer the question.
 For each used record return citations with source_id and a short EXACT contiguous quote from
 its body (no ellipsis, substitutions or translated invented quotes). Mention the book/section
-in the reply. The app verifies and displays each quote with its original location and URL.
+in the reply. For EVERY classical citation add reading: a short, plain Korean translation
+of that exact quoted passage (1-2 sentences, at most 300 Korean characters). Translate the
+historical wording and qualifiers faithfully, using the surrounding supplied source as context.
+Do not replace the translation with the DB's editorial summary or infer medical advice,
+efficacy, diagnoses, prescriptions or a clinician instruction. Original quote stays unchanged.
+For modern citations reading may be empty. The UI displays Korean reading first, with the
+Chinese original, location and URL under an expandable source detail. Do not repeat quotes,
+metadata, or their translation in the main reply; use 1-3 concise Korean sentences, normally
+under 180 characters. The app verifies the original quote and stores the reading separately.
 Record memories only for the CURRENT user's explicit self-reported lifestyle, discomfort or goal.
 Do not record questions, hypotheticals, others' health, or model inferences as user facts. Each
 memory quote must be a verbatim substring of CURRENT_USER_MESSAGE; preserve time/uncertainty and
 do not convert a past record into a present condition. Returning zero memories is valid.
 If the user describes immediate severe symptoms, prioritise seeking urgent professional help,
-without a diagnosis or suggesting herbs. Keep answers normally under 500 Korean characters.
+without a diagnosis or suggesting herbs. Keep answers normally under 180 Korean characters.
 Return up to 4 actions only if relevant to the CURRENT explicit request. Each action has type,
 label, query, title, start and note strings. Types: hospitals (query must include supplied region
 and logistical preferences, exclude user's private symptoms), web (public information search
@@ -119,8 +128,8 @@ SCHEMA["properties"]["actions"] = {
         "required": ["type", "label", "query", "title", "start", "note", "sleep", "stress", "energy", "discomfort", "activity", "caffeine", "operation", "target_id", "search_id", "hospital_id", "end", "location", "instruction_quote"], "additionalProperties": False}}
 SCHEMA["required"].append("actions")
 SCHEMA["properties"]["citations"] = {"type": "array", "items": {
-    "type": "object", "properties": {"source_id": {"type": "string"}, "quote": {"type": "string"}},
-    "required": ["source_id", "quote"], "additionalProperties": False}}
+    "type": "object", "properties": {"source_id": {"type": "string"}, "quote": {"type": "string"}, "reading": {"type": "string", "maxLength": 400}},
+    "required": ["source_id", "quote", "reading"], "additionalProperties": False}}
 SCHEMA["required"].append("citations")
 SCHEMA["properties"]["observations"] = {"type": "array", "maxItems": 8, "items": {
     "type": "object", "properties": {
@@ -412,8 +421,16 @@ def validate_result(result: dict, message: str, sources: list) -> dict:
         if not source or not isinstance(quote, str) or not 2 <= len(quote) <= 800 or quote not in source["body"]:
             raise ModelError("원문과 인용 문장이 일치하지 않아 답변을 보류했어요.")
         offset = source["body"].index(quote)
-        verified_citations.append({"source_id": source["id"], "quote": quote,
-            "offset_start": offset, "offset_end": offset + len(quote)})
+        verified = {"source_id": source["id"], "quote": quote,
+            "offset_start": offset, "offset_end": offset + len(quote)}
+        # Missing reading is compatible with historical stored citations/old fixtures.
+        # Fresh structured model output always includes the field via SCHEMA.
+        if "reading" in citation:
+            reading=citation["reading"]
+            if not isinstance(reading,str) or len(reading)>400 or (source["category"]=="classical" and not re.search(r"[가-힣]",reading)):
+                raise ModelError("고문헌 인용의 한국어 해석을 확인하지 못했어요.")
+            verified["reading"]=reading.strip()
+        verified_citations.append(verified)
         if source["id"] not in ids:
             ids.append(source["id"])
     clean = []
@@ -440,7 +457,6 @@ def validate_result(result: dict, message: str, sources: list) -> dict:
                 for key in ("sleep", "stress", "energy", "discomfort", "activity", "caffeine"):
                     value = action.get(key, "")
                     if isinstance(value, str) and len(value) <= 8:
-                        import re
                         # A quantity may only be offered when its number occurs in this utterance.
                         # The user reviews these draft fields before any daily record is saved.
                         if re.fullmatch(r"\d+(?:\.\d+)?", value) and re.search(r"(?<![\d.])" + re.escape(value) + r"(?![\d.])", message):

@@ -95,8 +95,11 @@ def main():
                     report=page.evaluate(TEXT_CONTRAST)
                     assert not report["failures"], (width,"sidebar",report["failures"])
                     page.locator("#close-sidebar").click()
+                    if not page.locator(".quoted-passage .source-original").first.evaluate("e=>e.open"):
+                        page.locator(".quoted-passage .source-original > summary").first.click()
                     page.locator(".quoted-passage .citation").first.click()
                     expect(page.locator("#source-reading-section")).to_be_visible()
+                    page.locator("#source-dialog .source-original > summary").click()
                     assert page.locator("#source-body").inner_text()
                     report=page.evaluate(TEXT_CONTRAST)
                     assert not report["failures"], (width,"source",report["failures"])

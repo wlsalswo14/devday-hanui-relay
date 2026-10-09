@@ -33,6 +33,7 @@ def main():
         expect(page.locator(".message")).to_have_count(2)
         assert page.locator(".memory-card").count() >= 1
         assert page.locator(".source-card").count() >= 1
+        if not page.locator("#context-sidebar").is_visible():page.locator("#toggle-sidebar").click()
         page.locator(".source-card").first.click()
         assert page.locator("#source-dialog").is_visible()
         assert page.locator("#source-link").get_attribute("href").startswith("https://")

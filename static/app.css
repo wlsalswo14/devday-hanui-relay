@@ -448,6 +448,175 @@ mark { background: #d5e8dc; color: #202824; }
   .report-controls input { font-size: 16px; }
   .report-coverage { gap: 10px; }
 }
+/* Keep the conversation prominent while secondary records remain easy to scan. */
+@media screen {
+  :root { --muted: #59665e; --border: #d5ddd7; --radius: 12px; }
+  body { line-height: 1.55; }
+  .topbar { min-height: 56px; padding: 7px max(18px, calc((100vw - 1280px)/2)); }
+  .brand { gap: 8px; font-size: 21px; }
+  .mark { width: 32px; height: 32px; border-radius: 9px; font-size: 26px; }
+  .app-nav { max-width: 1316px; gap: 4px; margin-top: 8px; padding: 0 18px; }
+  .app-nav button { min-height: 38px; padding: 7px 14px; font-size: 14px; }
+  .conversation-bar { max-width: 1280px; gap: 8px; margin-top: 8px; padding: 7px 10px; border-radius: 10px; }
+  .conversation-bar select { width: min(300px, 27vw); min-height: 36px; padding: 5px 10px; }
+  .conversation-bar .secondary, .conversation-bar .quiet { min-height: 36px; padding: 6px 10px; }
+  .workspace { max-width: 1360px; grid-template-columns: minmax(0,1fr) 290px; gap: 16px; margin: 12px auto 28px; padding: 0 18px; }
+  .sidebar-collapsed .conversation { max-width: none; }
+  .conversation { padding: 16px 20px 12px; }
+  .conversation h1 { margin: 0; font-size: 22px; line-height: 1.3; }
+  .mode select { min-height: 36px; }
+  .mode-description { margin-top: 7px; padding-bottom: 8px; font-size: 12px; line-height: 1.4; }
+  .messages { height: clamp(420px, calc(100dvh - 300px), 900px); min-height: 0; max-height: none; padding: 14px 4px 6px; }
+  .welcome { padding: 16px 0; }
+  .welcome-art { width: 46px; height: 46px; margin-bottom: 12px; border-radius: 12px; }
+  .welcome-art span { font-size: 31px; }
+  .welcome h2 { font-size: 23px; margin-bottom: 6px; }
+  .welcome p { font-size: 14px; line-height: 1.6; }
+  .suggestions { margin-top: 16px; }
+  .message { gap: 7px; margin-bottom: 22px; }
+  .bubble { line-height: 1.7; }
+  .composer { gap: 10px; margin-top: 7px; padding: 10px 12px; }
+  .composer textarea { min-height: 48px; }
+  .composer-note { margin-top: 5px; }
+  .boundary { margin-top: 5px; font-size: 11px; }
+  .context { max-height: calc(100dvh - 178px); overflow-y: auto; overscroll-behavior: contain; padding: 12px 14px; }
+  .sidebar-heading { padding-bottom: 7px; }
+  .context-section { padding: 15px 0; }
+  .context-section .section-label { color: #344d40; font-size: 13px; font-weight: 700; }
+  .context-footer { display: none; }
+  .memory-card, .source-card { margin-top: 7px; padding: 10px 12px; border-radius: 8px; }
+  .memory-card p, .source-card strong { line-height: 1.5; }
+  .empty-note { padding: 12px; line-height: 1.55; }
+  .view-head { gap: 16px; margin: 2px 0 16px; }
+  .view-head h1 { font-size: 27px; }
+  .view-head p { margin-top: 5px; font-size: 14px; line-height: 1.55; }
+  .tool-grid, .library-grid, .hospital-grid { gap: 14px; margin: 14px 0; }
+  .tool-card { padding: 18px 20px; margin-bottom: 14px; }
+  .tool-card h2 { font-size: 18px; margin-bottom: 8px; }
+  .tool-card p { line-height: 1.65; }
+  .section-caption { margin-bottom: 10px; line-height: 1.6; }
+  .stat-grid { gap: 10px; }
+  .stat-card { padding: 13px 16px; }
+  .stat-label { margin-bottom: 4px; font-size: 13px; }
+  .stat-card strong { font-size: 27px; }
+  .goal-row { padding: 10px 0; border-color: #cbd6ce; }
+  .record-row, .clinician-goal { padding: 13px 0; }
+  .compact-records { border-top: 1px solid var(--border); }
+  .compact-records > * + * { border-top: 1px solid var(--border); }
+  .entry-details { min-width: 0; }
+  .entry-details > summary, .source-original > summary, .record-details > summary, .hospital-details > summary { cursor: pointer; color: var(--green); font-size: 14px; font-weight: 650; line-height: 1.5; }
+  .entry-details > summary { min-height: 40px; padding: 9px 0; }
+  .entry-details[open] > summary { margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .entry-details .compact { margin-top: 0; padding-top: 0; border-top: 0; }
+  #checkin-state:empty { display: none; }
+  .guidance-card-head { align-items: center; gap: 12px; }
+  .guidance-card-head h2 { margin: 0; }
+  .patient-recent-row { padding: 9px 0; }
+  .report-sheet { margin-top: 12px; padding: 26px; }
+  .report-section { margin-top: 14px; }
+  .source-interpretation { margin-top: 14px; padding: 16px 18px; border-color: #cbd8ce; background: #f2f7f3; }
+  .source-interpretation h3 { font-size: 14px; }
+  .source-original { margin-top: 12px; padding: 0; border: 1px solid var(--border); border-radius: 9px; background: white; }
+  .source-original > summary { padding: 12px 16px; }
+  .source-original[open] > summary { border-bottom: 1px solid var(--border); }
+  .source-original .source-location { margin: 14px 16px 0; }
+  .source-original .source-body { margin: 14px 16px; padding-left: 13px; border-left: 3px solid var(--green); font-size: 15px; line-height: 1.75; }
+  .source-original .source-link { display: inline-block; margin: 0 16px 16px; }
+  .source-scope { margin: 12px 0 0; padding: 12px 16px; }
+  .citation-reading { width: 100%; padding: 12px 14px; border: 1px solid #cbd8ce; border-radius: 9px; background: #f2f7f3; color: #22392b; line-height: 1.65; overflow-wrap: anywhere; }
+  .citation-reading strong { color: var(--green); }
+  .citation-reading p { margin: 6px 0 0; }
+  .record-details, .hospital-details { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .record-details[open] > summary, .hospital-details[open] > summary { margin-bottom: 10px; }
+  .hospital-card { border-color: #cbd6ce; }
+  .hospital-reason { margin: 10px 0; padding: 11px 13px; }
+  .review-section { margin: 10px 0; }
+  .source-meta, .memory-origin, .search-note { color: var(--muted); }
+}
+@media screen and (max-width: 700px) {
+  .topbar { min-height: 50px; padding: 6px 12px; }
+  .brand { font-size: 20px; }
+  .app-nav { gap: 2px; margin-top: 5px; padding: 0 8px; max-width: 100%; overflow-x: auto; }
+  .app-nav button { min-height: 36px; padding: 7px 10px; white-space: nowrap; font-size: 13px; }
+  .conversation-bar { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 8px 0; padding: 6px; }
+  .conversation-bar label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+  .conversation-bar select { flex: 1 1 135px; width: auto; min-width: 0; min-height: 36px; }
+  .conversation-bar .secondary, .conversation-bar .quiet { min-height: 36px; padding: 6px 8px; font-size: 12px; }
+  .conversation-bar #rename-chat, .conversation-bar #toggle-sidebar { grid-column: auto; grid-row: auto; margin-left: 0; }
+  .workspace { display: flex; gap: 10px; margin: 8px auto 20px; padding: 0 8px; }
+  .conversation { padding: 12px 12px 10px; }
+  .conversation-head { flex-wrap: nowrap; align-items: center; }
+  .conversation h1 { font-size: 19px; }
+  .mode select { max-width: 142px; min-height: 36px; font-size: 12px; }
+  .mode-description { margin-top: 6px; padding-bottom: 6px; }
+  .messages { height: max(360px, calc(100dvh - 275px)); min-height: 0; max-height: none; padding-top: 10px; }
+  .welcome { padding: 16px 2px; }
+  .suggestions { margin-top: 14px; }
+  .suggestion { min-height: 40px; }
+  .message { margin-bottom: 18px; }
+  .message.user { max-width: 94%; }
+  .bubble { font-size: 16px; line-height: 1.7; }
+  .composer { padding: 8px 9px; }
+  .composer textarea { font-size: 16px; }
+  .composer-note { font-size: 10px; }
+  .boundary { line-height: 1.45; }
+  .context { max-height: none; }
+  .view-head { gap: 10px; margin-bottom: 12px; }
+  .view-head h1 { font-size: 24px; }
+  .tool-card { padding: 15px; margin-bottom: 10px; }
+  .tool-grid, .library-grid, .hospital-grid { gap: 10px; margin: 10px 0; }
+  .stat-card { padding: 11px 12px; }
+  .stat-card strong { font-size: 24px; }
+  .report-sheet { padding: 18px 14px; }
+  dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 20px); padding: 18px; }
+  .source-original .source-body { font-size: 15px; }
+}
+@media screen and (max-width: 360px) {
+  .conversation-bar select { flex-basis: 120px; }
+  .conversation-bar #toggle-sidebar { margin-left: auto; }
+  .mode select { max-width: 130px; }
+  .composer-note { flex-wrap: wrap; gap: 2px 8px; }
+}
+
+/* Short readings stay prominent; metadata and administration are secondary. */
+@media screen {
+  .message.assistant { max-width: 1120px; }
+  .reading-label { display: inline; float: right; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+  .quoted-passage { padding: 12px 16px; border-left-width: 3px; background: #f7faf8; }
+  .quoted-passage .source-kind { color: var(--muted); font-size: 12px; font-weight: 500; }
+  .citation-reading { margin: 7px 0; padding: 0; border: 0; background: none; color: #202824; font-size: 16px; line-height: 1.7; }
+  .quoted-passage .source-original { margin: 3px 0 0; border: 0; background: transparent; }
+  .quoted-passage .source-original > summary { padding: 2px 0; color: var(--muted); font-size: 12px; }
+  .quoted-passage .source-original[open] > summary { border-bottom: 0; }
+  .secondary-details { margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .secondary-details > summary, .record-details > summary, .hospital-details > summary, .report-calculation > summary { cursor: pointer; }
+  .library-more { grid-column: 1/-1; }
+  #daily-view > .tool-grid { grid-template-columns: 1fr; align-items: start; }
+  #goals-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,240px),1fr)); gap: 12px; }
+  .clinician-goal { padding: 12px; border: 1px solid var(--border); border-radius: 9px; }
+  .clinician-goal h3 { margin: 0; font-size: 16px; }
+  .clinician-goal .row-actions { margin-top: 8px; }
+  .clinician-goal .record-details { font-size: 12px; }
+  .message-actions .hospital-grid { grid-template-columns: repeat(auto-fit,minmax(min(100%,265px),1fr)); gap: 12px; }
+  .message-actions .hospital-card { padding: 16px; }
+  .hospital-card h2 { font-size: 17px; }
+  .hospital-card .hospital-address { font-size: 13px; }
+  .hospital-details { color: var(--muted); font-size: 12px; }
+  .hospital-reason::before { display: none; }
+  .hospital-card .row-actions { margin-top: 10px; gap: 6px; }
+  .hospital-card .row-actions :is(a,button) { min-height: 36px; padding: 6px 9px; font-size: 12px; }
+  .report-instruction { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 4px 12px; padding: 12px 0; }
+  .report-rate { grid-column: 2; grid-row: 1; color: var(--green); font-size: 26px; line-height: 1.3; }
+  .report-claim { grid-column: 1/-1; margin: 0; }
+  .report-calculation { grid-column: 1/-1; color: var(--muted); font-size: 12px; }
+  .report-calculation p { margin: 8px 0 0; }
+  .report-calculation > summary { min-height: 24px; }
+}
+@media screen and (max-width:700px) {
+  .message-actions .hospital-grid { grid-template-columns: 1fr; }
+  .report-rate { font-size: 23px; }
+  .reading-label { font-size: 10px; }
+}
 @page { size: A4 portrait; margin: 12mm; }
 @media print {
   html, body { background: white; margin: 0; font-size: 11px; }

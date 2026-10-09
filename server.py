@@ -235,6 +235,9 @@ class App:
             citations = [s for s in sources if s["id"] in result["source_ids"]]
             for source in citations:
                 source["citations"] = [c for c in result.get("citations", []) if c["source_id"] == source["id"]]
+                for citation in source["citations"]:
+                    if citation.get("reading"):
+                        citation["reading_origin"]="luna" if isinstance(self.model,CodexChat) and mode=="codex" else "demo"
             with self.store.connect():
                 outcomes = []
                 if mode == "codex":

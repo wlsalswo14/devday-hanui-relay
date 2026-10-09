@@ -1,0 +1,74 @@
+{
+  "retrieved_at": "2026-10-09",
+  "knowledge_record_count": 7,
+  "records": [
+    {
+      "id": "mibyung-concept-001",
+      "title": "미병: 건강과 질병 사이의 상태라는 연구 보고서의 설명",
+      "source_url": "https://www.bioin.or.kr/board/report/246899",
+      "publisher": "국가생명공학정책연구센터 BioIN (저자 소속: 한국한의학연구원)",
+      "evidence_level": "연구 동향 보고서의 개념 설명"
+    },
+    {
+      "id": "mibyung-research-landscape-001",
+      "title": "국내 미병 연구 경향과 근거의 범위",
+      "source_url": "https://www.kci.go.kr/kciportal/landing/article.kci?arti_id=ART002495552",
+      "publisher": "한국연구재단 KCI / 대한예방한의학회지",
+      "evidence_level": "국내 문헌 연구 동향 분석"
+    },
+    {
+      "id": "lifestyle-guidance-001",
+      "title": "한의표준임상진료지침의 생활관리 항목",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/24/567414/36765.do",
+      "publisher": "한국한의약진흥원 국가한의임상정보포털",
+      "evidence_level": "자율신경실조증 한의표준임상진료지침 요약의 관리 정보"
+    },
+    {
+      "id": "herb-origin-glycyrrhiza-001",
+      "title": "감초의 공정서상 기원과 약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "공정서 한약재 기원 정보 목록"
+    },
+    {
+      "id": "herb-origin-astragalus-001",
+      "title": "황기의 공정서상 기원과 약용 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "공정서 한약재 기원 정보 목록"
+    },
+    {
+      "id": "herb-origin-pinellia-001",
+      "title": "반하의 공정서상 기원과 가공 부위",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "publisher": "한국한의약진흥원",
+      "evidence_level": "공정서 한약재 기원·가공 정보 목록"
+    },
+    {
+      "id": "resource-nckm-001",
+      "title": "국가한의임상정보포털 안내",
+      "source_url": "https://kminfra.nikom.or.kr/nckm/html.do?menu_idx=177",
+      "publisher": "한국한의약진흥원 한의약혁신기술개발사업단",
+      "evidence_level": "공공 임상정보 서비스 안내"
+    }
+  ],
+  "downloads": [
+    {
+      "filename": "herb-origins.pdf",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/106/565789/36154.do",
+      "bytes": 267365,
+      "sha256": "86bc628e072da11fcdbf4dedde559e7ccc67a7fda6c9a34b8d467c7d35ae3ab0",
+      "included_in_git": false,
+      "usage": "Local reference only; redistribution permission not asserted."
+    },
+    {
+      "filename": "lifestyle-guideline.pdf",
+      "source_url": "https://nikom.or.kr/board/boardFile/download/24/567414/36765.do",
+      "bytes": 3679530,
+      "sha256": "30f548d799804fca3dec651936b37cb9e295b467d5077e813c8800069113ef6a",
+      "included_in_git": false,
+      "usage": "Local reference only; redistribution permission not asserted."
+    }
+  ],
+  "seed_usage": "Short original summaries linked to checked source pages; raw source documents are not included."
+}

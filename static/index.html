@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1e5545">
+  <title>Hanui — 나를 알아가는 대화</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Hanui 홈"><span class="mark">h.</span><span>hanui<span class="brand-note">일상을 알아가는 한의학 대화</span></span></a>
+    <div class="top-actions"><span class="local-label"><span class="dot"></span> 개인 공간</span><button id="reset" class="quiet">대화·기록 삭제</button></div>
+  </header>
+  <main class="workspace">
+    <section class="conversation" aria-label="한의학 정보 대화">
+      <div class="conversation-head"><div><span class="eyebrow">HANUI RELAY</span><h1>나를 알아가는 대화</h1></div><label class="mode"><span class="sr-only">대화 모델</span><select id="mode"><option value="codex">Luna · High</option><option value="demo">샘플 대화</option></select></label></div>
+      <div class="mode-description" id="mode-description">연결 상태를 확인하고 있어요.</div>
+      <div id="messages" class="messages" role="log" aria-label="대화 내용" aria-live="polite"></div>
+      <div id="loading" class="loading" hidden><span class="loading-dot"></span>자료와 지난 대화를 살펴보고 있어요…</div>
+      <div id="error" class="error" role="alert" hidden></div>
+      <form id="chat-form" class="composer"><label for="message" class="sr-only">오늘의 생활과 궁금한 점</label><textarea id="message" rows="2" maxlength="2000" placeholder="오늘의 생활이나 궁금한 점을 편하게 이야기해 주세요." required></textarea><button id="send" class="send" type="submit" aria-label="메시지 보내기">↑</button></form>
+      <p class="composer-note">Enter로 보내기 · Shift+Enter로 줄바꿈<span id="counter">0 / 2000</span></p>
+      <p class="boundary">생활기록과 정보 탐색을 돕습니다. 개인 진단·처방은 제공하지 않습니다.</p>
+    </section>
+    <aside class="context" aria-label="생활기록과 근거 자료">
+      <section class="context-section"><div class="section-label"><span>대화에서 발견한 나의 일상</span><span id="memory-count" class="count">0</span></div><h2>생활기록</h2><p class="section-caption">내가 이야기한 내용을 기억해요.</p><div id="memories"></div></section>
+      <section class="context-section library"><div class="section-label"><span>원문으로 연결되는 정보</span><span id="knowledge-count" class="count">0</span></div><h2>찾아본 자료</h2><p class="section-caption">답변에 사용된 자료와 근거의 범위.</p><div id="sources"></div></section>
+      <div class="context-footer"><span class="small-leaf">↗</span><p>작은 변화에서 시작하는 대화.<br>지난 이야기와 오늘의 일상을 함께 봅니다.</p></div>
+    </aside>
+  </main>
+  <dialog id="source-dialog"><div class="dialog-top"><span class="eyebrow">SOURCE NOTES</span><button id="close-source" class="quiet" aria-label="자료 닫기">닫기 ×</button></div><h2 id="source-title"></h2><p id="source-meta" class="source-meta"></p><p id="source-body" class="source-body"></p><div class="source-scope"><strong>이 자료의 범위</strong><p id="source-limit"></p></div><a id="source-link" target="_blank" rel="noopener noreferrer" class="source-link">원문 확인하기 ↗</a></dialog>
+</body>
+</html>

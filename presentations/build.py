@@ -60,9 +60,6 @@ def pill(slide, s, x, y, w):
 
 def card(slide, head, body, x, y, w, h, accent=False, short_accent=False):
     box(slide, x, y, w, h, WHITE, True, LINE)
-    if accent:
-        length = h * .60 if short_accent else h
-        box(slide, x, y+(h-length)/2, .07, length, GREEN)
     text(slide, head, x+.25, y+.25, w-.5, .48, 20, True, GREEN)
     text(slide, body, x+.25, y+.87, w-.5, h-1.04, 17, False, INK)
 

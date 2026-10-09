@@ -198,6 +198,8 @@ class Handler(BaseHTTPRequestHandler):
         if not self.validate_origin():
             return self.respond(403, {"error": "이 주소에서 요청할 수 없어요."})
         path = urlparse(self.path).path
+        if path == "/api/sessions":
+            return self.respond(200, {"sessions": self.app.store.list_sessions()})
         if path == "/api/config":
             return self.respond(200, {"codex_enabled": self.app.codex_enabled,
                 "knowledge_count": self.app.store.knowledge_count(), "model": MODEL, "effort": EFFORT})
@@ -251,6 +253,14 @@ class Handler(BaseHTTPRequestHandler):
             path = urlparse(self.path).path
             if path == "/api/sessions":
                 return self.respond(201, self.app.store.create_session())
+            match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/title", path)
+            if match:
+                if not self.app.lock.acquire(blocking=False):
+                    raise ValueError("AI 응답이 끝난 뒤 이름을 바꿀 수 있어요.")
+                try:
+                    return self.respond(200, self.app.store.rename_session(match[1], body.get("title")))
+                finally:
+                    self.app.lock.release()
             match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/chat", path)
             if match:
                 return self.respond(200, self.app.chat(match[1], body))

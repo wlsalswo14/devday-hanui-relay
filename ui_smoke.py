@@ -20,6 +20,8 @@ def main():
             launch["executable_path"] = str(chrome)
         browser = playwright.chromium.launch(**launch)
         context = browser.new_context(viewport={"width": 1440, "height": 1024})
+        session = context.request.post("http://127.0.0.1:8765/api/sessions", data={}).json()
+        context.add_init_script("localStorage.setItem('hanui_session', " + json.dumps(session["id"]) + ");")
         page = context.new_page()
         page.on("pageerror", lambda error: problems.append(str(error)))
         page.on("console", lambda message: problems.append(message.text) if message.type == "error" else None)
@@ -55,14 +57,15 @@ def main():
         assert page.locator(".message.user img").count() == 0
         assert not page.evaluate("Boolean(window.hanuiXss)")
         page.set_viewport_size({"width": 390, "height": 844})
+        if page.locator("#context-sidebar").is_visible():
+            page.locator("#close-sidebar").click()
         page.screenshot(path=str(output / "mobile-chat.png"), full_page=True)
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         # Entire session deletion removes both transcript and lifestyle records.
         page.once("dialog", lambda dialog: dialog.accept())
         page.locator("#reset").click()
-        page.get_by_text("오늘, 몸과 마음은 어때요?", exact=True).wait_for()
-        assert page.locator(".memory-card").count() == 0
-        assert page.locator(".message").count() == 0
+        expect(page.locator("#session-select")).not_to_have_value(session["id"])
+        assert context.request.get(f'http://127.0.0.1:8765/api/sessions/{session["id"]}').status == 404
         assert not problems, problems
         context.close()
         browser.close()

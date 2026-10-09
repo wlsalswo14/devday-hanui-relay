@@ -1,6 +1,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
-const state = {session: null, config: null, busy: false, mode: "codex"};
+const state = {session: null, sessions: [], drafts: {}, config: null, busy: false, mode: "codex", sidebarOpen: window.innerWidth>700};
+try{const preference=localStorage.getItem("hanui_sidebar");if(preference!==null)state.sidebarOpen=preference==="open";}catch{}
 const categories = {sleep:"수면",stress:"마음 · 스트레스",diet:"식사",activity:"활동",caffeine:"커피 · 카페인",symptom:"느낀 불편함",goal:"생활 목표"};
 function node(tag, className, text) { const n = document.createElement(tag); if(className)n.className=className; if(text !== undefined)n.textContent=text; return n; }
 function savedId(){try{return localStorage.getItem("hanui_session");}catch{return null;}}
@@ -12,7 +13,19 @@ async function api(path, options={}) {
   return body;
 }
 function showError(message){$("error").textContent=message||"";$("error").hidden=!message;}
-function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);}
+function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("session-select").disabled=value;$("new-chat").disabled=value;$("rename-chat").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);}
+function syncSidebar(){const chat=!document.querySelector(".conversation").hidden;$("context-sidebar").hidden=!chat||!state.sidebarOpen;$("toggle-sidebar").hidden=!chat;$("toggle-sidebar").textContent=state.sidebarOpen?"기록·자료 닫기":"기록·자료 열기";$("toggle-sidebar").setAttribute("aria-expanded",String(chat&&state.sidebarOpen));document.querySelector(".workspace").classList.toggle("sidebar-collapsed",!state.sidebarOpen);$("sidebar-backdrop").hidden=!chat||!state.sidebarOpen;}
+function toggleSidebar(open){if(!open&&$("context-sidebar").contains(document.activeElement))$("toggle-sidebar").focus();state.sidebarOpen=open;try{localStorage.setItem("hanui_sidebar",open?"open":"closed");}catch{}syncSidebar();}
+$("toggle-sidebar").addEventListener("click",()=>toggleSidebar(!state.sidebarOpen));
+$("close-sidebar").addEventListener("click",()=>toggleSidebar(false));
+$("sidebar-backdrop").addEventListener("click",()=>toggleSidebar(false));
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!document.querySelector("dialog[open]"))toggleSidebar(false);});
+async function refreshSessions(){state.sessions=(await api("/api/sessions")).sessions;const select=$("session-select");select.replaceChildren();state.sessions.forEach(s=>{const option=node("option","",`${s.title} · ${s.turns}턴`);option.value=s.id;select.append(option);});select.value=state.session?.id||"";}
+function useSession(session){if(state.session)state.drafts[state.session.id]=$("message").value;state.session=session;saveId(session.id);$("message").value=state.drafts[session.id]||"";updateCount();$("checkin-date").value="";$("goal-title").value="";selectedHospital=null;confirmingBooking=null;editingEvent=null;document.querySelectorAll("dialog[open]").forEach(d=>d.close());showError("");render();$("session-select").value=session.id;}
+$("session-select").addEventListener("change",async()=>{if(state.busy)return;const id=$("session-select").value;busy(true);try{useSession(await api(`/api/sessions/${id}`));}catch(e){showError(e.message);$("session-select").value=state.session.id;}finally{busy(false);}});
+$("new-chat").addEventListener("click",async()=>{if(state.busy)return;busy(true);try{useSession(await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();showView("chat");}catch(e){showError(e.message);}finally{busy(false);$("message").focus();}});
+$("rename-chat").addEventListener("click",()=>{if(state.busy||!state.session)return;$("session-title").value=state.session.title;$("rename-dialog").showModal();$("session-title").focus();});
+$("rename-form").addEventListener("submit",async e=>{e.preventDefault();if(state.busy)return;busy(true);try{state.session=await api(`/api/sessions/${state.session.id}/title`,{method:"POST",body:JSON.stringify({title:$("session-title").value})});await refreshSessions();$("rename-dialog").close();}catch(e){showError(e.message);}finally{busy(false);}});
 function setModeDescription(){
   $("mode-description").textContent=state.mode==="codex"?"GPT-6 Luna · High — 현재 로그인된 ChatGPT 계정으로 대화합니다.":"샘플 대화 · 실제 DB 검색 — 모델 호출 없이 화면과 생활기록을 체험합니다.";
 }
@@ -50,12 +63,13 @@ function render(){
   records.forEach(record=>{const button=node("button","source-card");button.type="button";button.append(node("span","source-kind",record.evidence_level),node("strong","",record.title),node("span","source-publisher",record.publisher+" ↗"));button.addEventListener("click",()=>openSource(record));sources.append(button);});
   messages.scrollTop=messages.scrollHeight;
   if(typeof renderCare==="function")renderCare();
+  syncSidebar();
 }
 function updateCount(){$("counter").textContent=`${$("message").value.length} / 2000`;}
 $("chat-form").addEventListener("submit",async event=>{
   event.preventDefault();if(state.busy||!state.session)return;const message=$("message").value.trim();if(!message)return;
   showError("");busy(true);
-  try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode})});$("message").value="";updateCount();render();}
+  try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode})});$("message").value="";updateCount();render();await refreshSessions();}
   catch(error){showError(error.message);}finally{busy(false);$("message").focus();}
 });
 $("message").addEventListener("input",updateCount);
@@ -63,7 +77,7 @@ $("message").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.s
 $("mode").addEventListener("change",()=>{state.mode=$("mode").value;setModeDescription();});
 $("reset").addEventListener("click",async()=>{
   if(state.busy||!state.session||!window.confirm("이 대화와 연결된 생활기록을 모두 삭제할까요?"))return;
-  busy(true);showError("");try{await api(`/api/sessions/${state.session.id}`,{method:"DELETE"});state.session=await api("/api/sessions",{method:"POST",body:"{}"});saveId(state.session.id);render();}catch(error){showError(error.message);}finally{busy(false);}
+  busy(true);showError("");try{const deleted=state.session.id;await api(`/api/sessions/${deleted}`,{method:"DELETE"});delete state.drafts[deleted];await refreshSessions();state.session=null;useSession(state.sessions.length?await api(`/api/sessions/${state.sessions[0].id}`):await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();}catch(error){showError(error.message);}finally{busy(false);}
 });
 $("close-source").addEventListener("click",()=>$("source-dialog").close());
 $("source-dialog").addEventListener("click",event=>{if(event.target===$("source-dialog")){const r=event.target.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)event.target.close();}});
@@ -72,7 +86,8 @@ async function init(){
     state.config=await api("/api/config");const option=$("mode").querySelector('option[value="codex"]');option.disabled=!state.config.codex_enabled;
     if(!state.config.codex_enabled){state.mode="demo";$("mode").value="demo";}setModeDescription();
     const id=savedId();if(id){try{state.session=await api(`/api/sessions/${id}`);}catch(error){if(error.status!==404)throw error;}}
-    if(!state.session)state.session=await api("/api/sessions",{method:"POST",body:"{}"});saveId(state.session.id);render();
+    await refreshSessions();
+    if(!state.session)state.session=state.sessions.length?await api(`/api/sessions/${state.sessions[0].id}`):await api("/api/sessions",{method:"POST",body:"{}"});saveId(state.session.id);render();await refreshSessions();
   }catch(error){showError(error.message);}finally{busy(false);}
 }
 init();

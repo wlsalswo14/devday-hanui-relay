@@ -41,6 +41,8 @@ class Store:
             """)
             if "actions" not in {r[1] for r in db.execute("PRAGMA table_info(messages)")}:
                 db.execute("ALTER TABLE messages ADD COLUMN actions TEXT NOT NULL DEFAULT '[]'")
+            if "title" not in {r[1] for r in db.execute("PRAGMA table_info(sessions)")}:
+                db.execute("ALTER TABLE sessions ADD COLUMN title TEXT NOT NULL DEFAULT ''")
         self.care = CareStore(self)
         self.refresh_knowledge()
 
@@ -183,12 +185,31 @@ class Store:
         with self.connect() as db:
             if db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0] >= 100:
                 raise ValueError("대화가 너무 많아요. 사용하지 않는 대화를 삭제해 주세요.")
-            db.execute("INSERT INTO sessions VALUES (?,?)", (session_id, now()))
+            db.execute("INSERT INTO sessions(id,created_at) VALUES (?,?)", (session_id, now()))
+        return self.get_session(session_id)
+
+    def list_sessions(self):
+        with self.connect() as db:
+            rows = db.execute("""SELECT s.id,s.created_at,s.title,
+                (SELECT content FROM messages WHERE session_id=s.id AND role='user' ORDER BY seq LIMIT 1) AS first_message,
+                COALESCE((SELECT MAX(created_at) FROM messages WHERE session_id=s.id),s.created_at) AS updated_at,
+                (SELECT COUNT(*) FROM messages WHERE session_id=s.id AND role='user') AS turns
+                FROM sessions s ORDER BY updated_at DESC,s.id""").fetchall()
+        return [{"id": r["id"], "title": r["title"] or (r["first_message"] or "새 대화").replace("\n", " ")[:40],
+                 "created_at": r["created_at"], "updated_at": r["updated_at"], "turns": r["turns"]} for r in rows]
+
+    def rename_session(self, session_id, title):
+        if not isinstance(title, str) or not 1 <= len(title.strip()) <= 80:
+            raise ValueError("대화 이름은 1~80자로 입력해 주세요.")
+        with self.connect() as db:
+            if not db.execute("UPDATE sessions SET title=? WHERE id=?", (title.strip(), session_id)).rowcount:
+                raise KeyError(session_id)
         return self.get_session(session_id)
 
     def get_session(self, session_id: str):
         with self.connect() as db:
-            if not db.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone():
+            session = db.execute("SELECT title FROM sessions WHERE id=?", (session_id,)).fetchone()
+            if not session:
                 raise KeyError(session_id)
             messages = [dict(r) for r in db.execute(
                 "SELECT id,role,content,mode,sources,actions,created_at FROM messages WHERE session_id=? ORDER BY seq",
@@ -199,7 +220,8 @@ class Store:
         for message in messages:
             message["sources"] = json.loads(message["sources"])
             message["actions"] = json.loads(message["actions"])
-        return {"id": session_id, "messages": messages, "memories": memories,
+        first_message = next((m["content"] for m in messages if m["role"] == "user"), "새 대화")
+        return {"id": session_id, "title": session["title"] or first_message.replace("\n", " ")[:40], "messages": messages, "memories": memories,
                 "knowledge_count": self.knowledge_count(), "care": self.care.dashboard(session_id)}
 
     def save_turn(self, session_id, message, reply, sources, memories, mode, actions=None):

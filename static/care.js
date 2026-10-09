@@ -13,6 +13,7 @@ function showView(view){
   document.querySelectorAll(".tool-view").forEach(p=>p.hidden=p.id!==`${view}-view`);
   document.querySelectorAll(".app-nav button").forEach(b=>{const selected=b.dataset.view===view;b.classList.toggle("active",selected);if(selected)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});
   if(view==="library"&&!$("library-results").children.length)loadLibrary();
+  syncSidebar();
 }
 document.querySelectorAll(".app-nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
 document.querySelectorAll(".close-dialog").forEach(b=>b.addEventListener("click",()=>b.closest("dialog").close()));

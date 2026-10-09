@@ -77,6 +77,34 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(other["messages"], [])
         self.assertEqual(other["memories"], [])
 
+    def test_multiple_conversations_keep_titles_records_and_history(self):
+        self.chat("요즘 5시간 자고 있어")
+        other = self.app.store.create_session()
+        self.app.store.rename_session(other["id"], "식사 이야기")
+        self.app.chat(other["id"], {"message": "아침을 거르고 있어요", "mode": "demo"})
+        sessions = self.app.store.list_sessions()
+        self.assertEqual(len(sessions), 2)
+        self.assertEqual(sessions[0]["id"], other["id"])
+        self.assertEqual(sessions[0]["title"], "식사 이야기")
+        self.assertEqual(sessions[1]["title"], "요즘 5시간 자고 있어")
+        reopened = Store(self.runtime / "hanui.sqlite3", SEED)
+        self.assertEqual(reopened.get_session(other["id"])["title"], "식사 이야기")
+        self.assertEqual(reopened.get_session(self.session_id)["messages"][0]["content"], "요즘 5시간 자고 있어")
+        self.app.store.delete_session(other["id"])
+        self.assertEqual([s["id"] for s in self.app.store.list_sessions()], [self.session_id])
+
+    def test_session_title_migration_preserves_old_session(self):
+        import sqlite3
+        old_path = self.runtime / "old.sqlite3"
+        with sqlite3.connect(old_path) as db:
+            db.execute("CREATE TABLE sessions (id TEXT PRIMARY KEY,created_at TEXT NOT NULL)")
+            db.execute("INSERT INTO sessions VALUES (?,?)", ("a" * 32, "2026-01-01"))
+        db.close()
+        migrated = Store(old_path, SEED)
+        self.assertEqual(migrated.get_session("a" * 32)["title"], "새 대화")
+        migrated.rename_session("a" * 32, "기존 대화")
+        self.assertEqual(migrated.list_sessions()[0]["title"], "기존 대화")
+
     def test_delete_cascades_to_messages_and_memories(self):
         self.chat("요즘 5시간 자고 있어")
         self.app.store.delete_session(self.session_id)
@@ -156,6 +184,13 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(len(result["messages"]), 2)
         restored = self.request(f'/api/sessions/{session["id"]}')
         self.assertEqual(result, restored)
+
+    def test_http_list_and_rename_conversation(self):
+        session = self.request("/api/sessions", {})
+        renamed = self.request(f'/api/sessions/{session["id"]}/title', {"title": "내 대화"})
+        self.assertEqual(renamed["title"], "내 대화")
+        listed = self.request("/api/sessions")["sessions"]
+        self.assertTrue(any(s["id"] == session["id"] and s["title"] == "내 대화" for s in listed))
 
     def test_foreign_origin_is_rejected(self):
         with self.assertRaises(urllib.error.HTTPError) as caught:

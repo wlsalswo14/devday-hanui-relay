@@ -136,12 +136,14 @@ def main():
                 expect(page.locator("#event-title")).to_have_value("합성 테스트한의원 방문")
                 expect(page.locator("#event-location")).to_have_value("합성 주소")
                 page.locator("#event-title").fill("합성 별도 방문 일정")
-                page.locator("#event-note").fill("개인 메모는 Google 링크에서 제외")
+                page.locator("#event-note").fill("개인 방문 메모는 앱에 저장")
                 page.get_by_role("button", name="일정 저장", exact=True).click()
                 page.get_by_role("button", name="일정·예약", exact=True).click()
                 expect(page.locator("#events-list .record-row")).to_have_count(2)
-                g = page.locator("#events-list .record-row").filter(has_text="합성 별도 방문 일정").get_by_role("link", name="Google Calendar에 추가 ↗")
-                assert "개인" not in g.get_attribute("href")
+                assert page.locator("a[href*='calendar.google.com']").count() == 0
+                page.locator("#events-list .record-row").filter(has_text="합성 별도 방문 일정").get_by_role("button", name="캘린더에서 보기").click()
+                expect(page.locator("#calendar-day-list")).to_contain_text("합성 별도 방문 일정")
+                expect(page.locator("#calendar-grid .calendar-cell")).to_have_count(42)
                 with page.expect_download() as download:
                     page.get_by_role("button", name=".ics 내보내기", exact=True).click()
                 calendar = Path(download.value.path()).read_text(encoding="utf-8")
@@ -252,7 +254,7 @@ def main():
             server.shutdown()
             server.server_close()
             thread.join(timeout=2)
-    report={"checks":["AI chat and searches start without prompts (synthetic fixture)","daily checkin and averages","goal completion","library and source","hospital name/address/reason cards (synthetic fixture)","phone and booking links","collapsed review text escaping","direct visit calendar draft","booking preparation","external user confirmation","calendar creation","ICS download includes visit address","Google link excludes private notes","web search UI (synthetic fixture)","reload persistence","booking cancellation","all mobile views","JSON export","full data deletion","multiple conversations and names","independent histories and checkins","unsent draft switching","active conversation restoration","sidebar toggle and preference","mobile sidebar and Escape","delete one conversation preserves another","no map/route assets or network requests","removed map/route endpoints return 404"],"console_errors":problems}
+    report={"checks":["AI chat and searches start without prompts (synthetic fixture)","daily checkin and averages","goal completion","library and source","hospital name/address/reason cards (synthetic fixture)","phone and booking links","collapsed review text escaping","direct visit calendar draft","booking preparation","external user confirmation","own monthly calendar and selected day","ICS download includes visit address","no Google Calendar links","web search UI (synthetic fixture)","reload persistence","booking cancellation","all mobile views","JSON export","full data deletion","multiple conversations and names","independent histories and checkins","unsent draft switching","active conversation restoration","sidebar toggle and preference","mobile sidebar and Escape","delete one conversation preserves another","no map/route assets or network requests","removed map/route endpoints return 404"],"console_errors":problems}
     (ROOT / ".runtime" / "ui-care-check.json").write_text(json.dumps(report,indent=2),encoding="utf-8")
     print(json.dumps(report,indent=2))
 

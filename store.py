@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import re
 import sqlite3
+import threading
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -19,6 +20,7 @@ def now() -> str:
 class Store:
     def __init__(self, path: Path, seed: Path):
         self.path, self.seed = path, seed
+        self._connections = threading.local()
         path.parent.mkdir(parents=True, exist_ok=True)
         self.seed_mtime = None
         with self.connect() as db:
@@ -48,13 +50,19 @@ class Store:
 
     @contextmanager
     def connect(self):
+        active = getattr(self._connections, "active", None)
+        if active is not None:
+            yield active
+            return
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA foreign_keys=ON")
         try:
+            self._connections.active = db
             with db:
                 yield db
         finally:
+            self._connections.active = None
             db.close()
 
     def refresh_knowledge(self):

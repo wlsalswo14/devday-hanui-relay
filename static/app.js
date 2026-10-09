@@ -66,12 +66,13 @@ function render(){
   syncSidebar();
 }
 function updateCount(){$("counter").textContent=`${$("message").value.length} / 2000`;}
-$("chat-form").addEventListener("submit",async event=>{
-  event.preventDefault();if(state.busy||!state.session)return;const message=$("message").value.trim();if(!message)return;
+async function send(override=null){
+  if(state.busy||!state.session)return false;const message=(typeof override==="string"?override:$("message").value).trim();if(!message)return false;
   showError("");busy(true);
-  try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode})});$("message").value="";updateCount();render();await refreshSessions();}
-  catch(error){showError(error.message);}finally{busy(false);$("message").focus();}
-});
+  try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode})});if(override===null){$("message").value="";updateCount();}render();await refreshSessions();return true;}
+  catch(error){showError(error.message);return false;}finally{busy(false);if(override===null)$("message").focus();}
+}
+$("chat-form").addEventListener("submit",event=>{event.preventDefault();send();});
 $("message").addEventListener("input",updateCount);
 $("message").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();$("chat-form").requestSubmit();}});
 $("mode").addEventListener("change",()=>{state.mode=$("mode").value;setModeDescription();});

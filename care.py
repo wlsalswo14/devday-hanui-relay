@@ -5,7 +5,7 @@ import json
 import math
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlparse
 
 KST = timezone(timedelta(hours=9))
 
@@ -256,12 +256,34 @@ class CareStore:
                 db.execute("INSERT INTO events VALUES (?,?,?)", (event_id, session, json.dumps(event, ensure_ascii=False)))
                 data.update(event_id=event_id, confirmation=confirmation)
             else:
-                if body.get("confirmed_by_user") is not True:
+                if body.get("confirmed_by_user") is not True and body.get("local_only") is not True:
                     raise ValueError("병원과 취소를 확인한 뒤 로컬 기록을 취소해 주세요.")
                 if data["event_id"]:
                     db.execute("DELETE FROM events WHERE id=? AND session_id=?", (data["event_id"], session))
                 data["event_id"] = ""
             data["status"] = status
+            db.execute("UPDATE bookings SET data=? WHERE id=? AND session_id=?", (json.dumps(data, ensure_ascii=False), item, session))
+        return self.dashboard(session)
+
+    def update_booking(self, session, item, body):
+        """Change a local visit plan; a new desired time needs hospital confirmation."""
+        with self.store.connect() as db:
+            self.owner(db, session)
+            row = db.execute("SELECT data FROM bookings WHERE id=? AND session_id=?", (item, session)).fetchone()
+            if not row:
+                raise KeyError(item)
+            data = json.loads(row[0])
+            if data["status"] == "cancelled":
+                raise ValueError("취소한 예약은 새로 준비해 주세요.")
+            start = local_time(body.get("start") or data["start"])
+            if start <= datetime.now(KST):
+                raise ValueError("방문 희망 시간은 현재 이후로 입력해 주세요.")
+            if data["status"] == "confirmed" and start.isoformat() != data["start"]:
+                db.execute("DELETE FROM events WHERE id=? AND session_id=?", (data["event_id"], session))
+                data.update(status="prepared", event_id="", confirmation="")
+            data["start"] = start.isoformat()
+            if "note" in body:
+                data["note"] = text(body["note"], "방문 메모", 1000, False)
             db.execute("UPDATE bookings SET data=? WHERE id=? AND session_id=?", (json.dumps(data, ensure_ascii=False), item, session))
         return self.dashboard(session)
 
@@ -281,7 +303,15 @@ class CareStore:
         return self.dashboard(session)
 
     def calendar(self, session):
-        events = self.dashboard(session)["events"]
+        care = self.dashboard(session)
+        events = [dict(e) for e in care["events"]]
+        for booking in care["bookings"]:
+            if booking["status"] == "prepared":
+                start = local_time(booking["start"])
+                events.append({"id": "booking-"+booking["id"], "title": booking["hospital"]["name"]+" · 예약 준비",
+                    "start": start.isoformat(), "end": (start+timedelta(minutes=30)).isoformat(),
+                    "location": booking["hospital"].get("address", ""),
+                    "note": "희망 시간만 저장됨. 병원 접수·확정 전. "+booking["note"], "tentative": True})
         lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Hanui//Lifestyle Calendar//KO", "CALSCALE:GREGORIAN", "METHOD:PUBLISH"]
         for event in events:
             utc = lambda v: local_time(v).astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -289,7 +319,8 @@ class CareStore:
                           "DTSTAMP:" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"),
                           "DTSTART:" + utc(event["start"]), "DTEND:" + utc(event["end"]),
                           "SUMMARY:" + ics_escape(event["title"]), "LOCATION:" + ics_escape(event["location"]),
-                          "DESCRIPTION:" + ics_escape(event["note"]), "END:VEVENT"])
+                          "DESCRIPTION:" + ics_escape(event["note"]),
+                          "STATUS:"+("TENTATIVE" if event.get("tentative") else "CONFIRMED"), "END:VEVENT"])
         lines.append("END:VCALENDAR")
         return b"\r\n".join(fold_line(line) for line in lines) + b"\r\n"
 

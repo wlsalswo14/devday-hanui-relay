@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/app.css">
   <script src="/app.js" defer></script>
   <script src="/care.js" defer></script>
+  <script src="/calendar.js" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -58,7 +59,9 @@
       <div id="library-results" class="library-grid"></div>
     </section>
     <section id="calendar-view" class="tool-view" hidden aria-labelledby="calendar-title">
-      <div class="view-head"><div><span class="eyebrow">YOUR TIME, IN ONE PLACE</span><h1 id="calendar-title">일정과 예약 준비</h1><p>전화·예약 페이지에서 확정을 받은 뒤 기록하면 방문 일정이 자동으로 생겨요.</p></div><div class="row-actions"><button id="calendar-export" class="secondary">.ics 내보내기</button><button id="new-event" class="primary">일정 추가</button></div></div>
+      <div class="view-head"><div><span class="eyebrow">YOUR TIME, WITH HANUI</span><h1 id="calendar-title">나의 캘린더</h1><p>Luna High에게 일정 추가·변경·삭제와 방문 준비를 이야기하세요.</p></div><div class="row-actions"><button id="calendar-export" class="secondary">.ics 내보내기</button><button id="new-event" class="primary">일정 추가</button></div></div>
+      <section class="tool-card calendar-assistant"><form id="calendar-chat-form"><label for="calendar-message">Luna High에게 부탁하기</label><div class="calendar-composer"><input id="calendar-message" maxlength="2000" placeholder="내일 오후 3시에 30분 산책 넣어줘" required><button id="calendar-send" type="submit" class="primary">요청하기</button></div></form><p id="calendar-feedback" class="search-note" role="status">일정은 이 앱에 저장돼요. 병원 예약은 전화·예약 링크에서 접수해 주세요.</p></section>
+      <section class="tool-card own-calendar"><div class="calendar-toolbar"><h2 id="calendar-month-title"></h2><div class="row-actions"><button id="calendar-prev" type="button" class="quiet" aria-label="이전 달">‹</button><button id="calendar-today" type="button" class="secondary">오늘</button><button id="calendar-next" type="button" class="quiet" aria-label="다음 달">›</button></div></div><div class="calendar-layout"><div><div class="calendar-weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div id="calendar-grid" class="calendar-grid" role="group" aria-label="월별 캘린더"></div></div><aside class="calendar-agenda"><h3 id="calendar-day-title"></h3><div id="calendar-day-list"></div><button id="calendar-day-add" type="button" class="secondary">이 날짜에 일정 추가</button></aside></div></section>
       <div class="tool-grid"><section class="tool-card"><h2>내 일정</h2><div id="events-list"></div></section><section class="tool-card"><h2>병원 예약 기록</h2><p class="section-caption">예약 준비는 병원에 접수된 상태가 아니에요.</p><div id="bookings-list"></div></section></div>
     </section>
   </main>

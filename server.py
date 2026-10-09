@@ -11,7 +11,7 @@ from urllib.parse import urlparse, parse_qs
 
 from codex_bridge import CodexChat, ModelError, MODEL, EFFORT
 from store import Store
-from care import text
+from care import text, local_time
 
 ROOT = Path(__file__).resolve().parent
 
@@ -106,6 +106,75 @@ class App:
         finally:
             self.lock.release()
 
+    def calendar_action(self, session_id, action, message):
+        """Execute a session-owned, explicitly requested local calendar change."""
+        quote = action.get("instruction_quote", "")
+        if not quote or quote not in message:
+            raise ValueError("변경할 내용을 대화에서 구체적으로 알려주세요.")
+        if re.search(r"(?:삭제|취소|추가|수정|예약)하면|예를\s*들어|가정|만약|(?:삭제|취소|추가|수정|예약)하지\s*마|(?:빼|넣|옮기)지\s*마", quote):
+            raise ValueError("가정이나 금지 요청으로는 캘린더를 변경하지 않아요.")
+        kind, operation = action["type"], action.get("operation")
+        care = self.care.dashboard(session_id)
+        target_id = action.get("target_id", "")
+        if kind == "event":
+            if operation == "create":
+                body = {k: action.get(k, "") for k in ("title", "start", "end", "location", "note")}
+                before = {e["id"] for e in care["events"]}
+                updated = self.care.event(session_id, body)
+                event = next(e for e in updated["events"] if e["id"] not in before)
+                outcome = "일정을 추가했어요."
+            elif operation in {"update", "delete"}:
+                event = next((e for e in care["events"] if e["id"] == target_id), None)
+                if not event:
+                    raise ValueError("현재 대화의 일정 하나를 지정해 주세요.")
+                if operation == "delete":
+                    self.care.delete(session_id, "events", target_id)
+                    outcome = "일정을 삭제했어요."
+                else:
+                    body = {k: action.get(k) or event[k] for k in ("title", "start", "end", "location", "note")}
+                    if action.get("start") and not action.get("end"):
+                        body["end"] = (local_time(body["start"])+(local_time(event["end"])-local_time(event["start"]))).isoformat()
+                    updated = self.care.event(session_id, body, target_id)
+                    event = next(e for e in updated["events"] if e["id"] == target_id)
+                    outcome = "일정을 수정했어요."
+            else:
+                raise ValueError("일정 추가·수정·삭제 중 하나를 요청해 주세요.")
+            action["record_id"] = event["id"]
+            detail = event["title"]+" · "+local_time(event["start"]).strftime("%m월 %d일 %H:%M")
+        elif kind == "booking":
+            if operation == "create":
+                before = {b["id"] for b in care["bookings"]}
+                updated = self.care.booking(session_id, {k: action.get(k, "") for k in ("search_id", "hospital_id", "start", "note")})
+                booking = next(b for b in updated["bookings"] if b["id"] not in before)
+                outcome = "예약 준비를 저장했어요. 병원 접수는 전화·예약 링크에서 완료해 주세요."
+            else:
+                booking = next((b for b in care["bookings"] if b["id"] == target_id), None)
+                if not booking:
+                    raise ValueError("현재 대화의 예약 기록 하나를 지정해 주세요.")
+                if operation == "update":
+                    body = {"start": action.get("start") or booking["start"]}
+                    if action.get("note"):
+                        body["note"] = action["note"]
+                    updated = self.care.update_booking(session_id, target_id, body)
+                    outcome = "방문 희망 시간을 변경했어요. 병원과 변경 시간을 확인해 주세요."
+                elif operation == "cancel":
+                    updated = self.care.booking_status(session_id, target_id, {"status": "cancelled", "local_only": True})
+                    outcome = "앱의 예약 기록과 방문 일정을 취소했어요. 실제 예약은 병원에도 취소를 요청해 주세요."
+                elif operation == "confirm":
+                    if re.search(r"아직|안\s*(?:됐|받|했)|않|못|아니|아님|미확정|확정해|확정할|확정되면", quote) or not re.search(r"확정.{0,12}(?:됐|되었|받|했|이야|이에요)|예약.{0,8}(?:완료|했|됐)", quote):
+                        raise ValueError("병원에서 예약 확정을 받았는지 알려주세요. 앱에서 병원 예약을 확정할 수는 없어요.")
+                    updated = self.care.booking_status(session_id, target_id, {"status": "confirmed", "confirmation": quote[:300], "confirmed_by_user": True})
+                    outcome = "병원에서 확정받았다는 말씀을 기록하고 방문 일정을 추가했어요."
+                else:
+                    raise ValueError("예약 준비·시간 변경·확정 기록·취소 중 하나를 요청해 주세요.")
+                booking = next(b for b in updated["bookings"] if b["id"] == target_id)
+            action["record_id"] = booking["id"]
+            detail = booking["hospital"]["name"]+" · "+local_time(booking["start"]).strftime("%m월 %d일 %H:%M")
+        else:
+            raise ValueError("캘린더 요청을 확인해 주세요.")
+        action.update(completed=True, label="캘린더에서 보기", outcome=outcome+"\n"+detail)
+        return action["outcome"]
+
     def chat(self, session_id, body):
         message, mode = body.get("message"), body.get("mode", "codex")
         if not isinstance(message, str) or not message.strip() or len(message) > 2000:
@@ -133,12 +202,12 @@ class App:
                 care = session["care"]
                 self.model.care_context = {key: care[key] for key in ("today", "summary", "goals", "events", "bookings", "conflicts")}
                 self.model.care_context["checkins"] = care["checkins"][:7]
-                self.model.care_context["public_searches"] = care["searches"][:2]
+                self.model.care_context["public_searches"] = care["searches"]
             responder = self.model.respond if mode == "codex" else demo_response
             result = responder(message.strip(), session["messages"], session["memories"], sources)
             actions = result.get("actions", [])
             # Luna selects read-only information tasks from the conversation.
-            # Changes to checkins/goals/events always require review in the UI.
+            # Calendar writes run after information lookup and are saved with the chat turn.
             if mode == "codex" and hasattr(self.model, "search_web"):
                 for action in actions[:2]:
                     kind = action.get("type")
@@ -161,8 +230,19 @@ class App:
             citations = [s for s in sources if s["id"] in result["source_ids"]]
             for source in citations:
                 source["citations"] = [c for c in result.get("citations", []) if c["source_id"] == source["id"]]
-            return self.store.save_turn(session_id, message.strip(), result["reply"], citations,
-                                        result["memories"], mode, actions)
+            with self.store.connect():
+                outcomes = []
+                if mode == "codex":
+                    for action in actions:
+                        if action["type"] in {"event", "booking"} and action.get("operation"):
+                            outcomes.append(self.calendar_action(session_id, action, message.strip()))
+                if outcomes:
+                    if citations or any(a["type"] not in {"event", "booking", "calendar"} for a in actions):
+                        result["reply"] += "\n\n"+"\n\n".join(outcomes)
+                    else:
+                        result["reply"] = "\n\n".join(outcomes)
+                return self.store.save_turn(session_id, message.strip(), result["reply"], citations,
+                                            result["memories"], mode, actions)
         finally:
             self.lock.release()
 
@@ -223,7 +303,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, self.app.store.get_session(match[1]))
             except KeyError:
                 return self.respond(404, {"error": "대화를 찾지 못했어요."})
-        files = {"/": "index.html", "/app.css": "app.css", "/app.js": "app.js", "/care.js": "care.js", "/favicon.svg": "favicon.svg"}
+        files = {"/": "index.html", "/app.css": "app.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/favicon.svg": "favicon.svg"}
         if path in files:
             file = ROOT / "static" / files[path]
             if file.exists():

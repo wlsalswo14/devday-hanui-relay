@@ -167,6 +167,14 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *_):
         pass
 
+    def handle(self):
+        try:
+            super().handle()
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            # A closed browser tab is a normal disconnect, including keep-alive sockets.
+            # Completed DB writes remain available when the user returns.
+            pass
+
     def respond(self, status, body, content_type="application/json; charset=utf-8"):
         if not isinstance(body, bytes):
             body = json.dumps(body, ensure_ascii=False).encode("utf-8")

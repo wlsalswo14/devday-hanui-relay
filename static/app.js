@@ -31,7 +31,7 @@ $("new-chat").addEventListener("click",async()=>{if(state.busy)return;busy(true)
 $("rename-chat").addEventListener("click",()=>{if(state.busy||!state.session)return;$("session-title").value=state.session.title;$("rename-dialog").showModal();$("session-title").focus();});
 $("rename-form").addEventListener("submit",async e=>{e.preventDefault();if(state.busy)return;busy(true);try{state.session=await api(`/api/sessions/${state.session.id}/title`,{method:"POST",body:JSON.stringify({title:$("session-title").value})});await refreshSessions();$("rename-dialog").close();}catch(e){showError(e.message);}finally{busy(false);}});
 function setModeDescription(){
-  $("mode-description").textContent=state.mode==="codex"?"Luna High":"샘플 · AI 호출 없음";
+  $("mode-description").textContent=state.mode==="codex"?"에이전트":"샘플 · AI 호출 없음";
 }
 function openSource(record){
   $("source-title").textContent=sourceName(record);$("source-meta").textContent=`${record.publisher} · ${record.retrieved_at}`;
@@ -40,7 +40,7 @@ function openSource(record){
   $("source-location").hidden=!record.location;
   const readings=(record.citations||[]).filter(c=>c.reading);
   $("source-reading").textContent=readings.length?readings.map(c=>c.reading).join("\n\n"):record.summary||"";$("source-reading-section").hidden=!readings.length&&!record.summary;
-  $("source-reading-section").querySelector("h3").textContent=readings.length?(readings.every(c=>c.reading_origin==="luna")?"한국어 해석 · Luna High":"한국어 해석 · 예시"):"자료 요약";
+  $("source-reading-section").querySelector("h3").textContent=readings.length?(readings.every(c=>["luna","openai","google"].includes(c.reading_origin))?"한국어 해석 · 에이전트":"한국어 해석 · 예시"):"자료 요약";
   const original=$("source-dialog").querySelector(".source-original");if(original){original.open=false;original.querySelector("summary").textContent=record.category==="classical"?"한자 원문·출처":"자료 원문·출처";}
   const link=$("source-link");let valid=false;try{const url=new URL(record.source_url);valid=["https:","http:"].includes(url.protocol);if(valid)link.href=url.href;}catch{}
   link.hidden=!valid;$("source-dialog").showModal();
@@ -60,7 +60,7 @@ function render(){
     label.append(node("span","",message.role==="user"?"나":message.mode==="codex"?"Hanui":"샘플"));article.append(label,node("div","bubble",message.content));
     if(message.sources?.length){message.sources.forEach(record=>{
       if(record.citations?.length){const passage=node("section","quoted-passage");passage.append(node("span","source-kind",shortText(sourceName(record),55)));
-        record.citations.forEach(c=>{if(c.reading){passage.append(node("p","reading-label",c.reading_origin==="luna"?"Luna High 해석":"예시 해석"),node("p","citation-reading",c.reading));}
+        record.citations.forEach(c=>{if(c.reading){passage.append(node("p","reading-label",["luna","openai","google"].includes(c.reading_origin)?"에이전트 해석":"예시 해석"),node("p","citation-reading",c.reading));}
           const original=fold(record.category==="classical"?"한자 원문·출처":"인용·출처",[node("blockquote","",c.quote),node("p","quote-location",`${record.location||record.title} · 본문 ${c.offset_start+1}–${c.offset_end}자`)],"source-original");
           const detail=node("button","citation","출처 보기 ↗");detail.type="button";detail.addEventListener("click",()=>openSource(record));original.append(detail);passage.append(original);
         });article.append(passage);

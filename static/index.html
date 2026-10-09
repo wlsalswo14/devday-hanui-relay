@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#1e5545">
+  <meta name="theme-color" content="#f5f4ef">
   <title>Hanui — 나를 알아가는 대화</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app.css">
@@ -23,7 +23,7 @@
   <div class="conversation-bar"><label for="session-select">대화 선택</label><select id="session-select" aria-label="대화 선택"></select><button id="new-chat" class="secondary" type="button">+ 새 대화</button><button id="rename-chat" class="quiet" type="button">이름 변경</button><button id="toggle-sidebar" class="secondary" type="button" aria-controls="context-sidebar" aria-expanded="false">기록·자료</button></div>
   <main class="workspace sidebar-collapsed">
     <section class="conversation" aria-label="한의학 정보 대화">
-      <div class="conversation-head"><h1>대화</h1><label class="mode"><span class="sr-only">대화 모델</span><select id="mode"><option value="codex">Luna · High</option><option value="demo">샘플 대화</option></select></label></div>
+      <div class="conversation-head"><h1>오늘의 대화</h1><label class="mode"><span class="sr-only">대화 방식</span><select id="mode"><option value="codex">에이전트</option><option value="demo">샘플 대화</option></select></label></div>
       <div class="mode-description" id="mode-description">연결 상태를 확인하고 있어요.</div>
       <div id="messages" class="messages" role="log" aria-label="대화 내용" aria-live="polite"></div>
       <div id="loading" class="loading" hidden><span class="loading-dot"></span>답변을 준비하고 있어요…</div>
@@ -62,7 +62,7 @@
     </section>
     <section id="calendar-view" class="tool-view" hidden aria-labelledby="calendar-title">
       <div class="view-head"><h1 id="calendar-title">일정·예약</h1><div class="row-actions"><button id="calendar-export" class="secondary">.ics 내보내기</button><button id="new-event" class="primary">일정 추가</button></div></div>
-      <section class="tool-card calendar-assistant"><form id="calendar-chat-form"><label for="calendar-message">Luna High에게 부탁하기</label><div class="calendar-composer"><input id="calendar-message" maxlength="2000" placeholder="내일 오후 3시에 30분 산책 넣어줘" required><button id="calendar-send" type="submit" class="primary">요청하기</button></div></form><p id="calendar-feedback" class="search-note" role="status">일정은 이 앱에 저장돼요. 병원 예약은 전화·예약 링크에서 접수해 주세요.</p></section>
+      <section class="tool-card calendar-assistant"><form id="calendar-chat-form"><label for="calendar-message">에이전트에게 일정 부탁하기</label><div class="calendar-composer"><input id="calendar-message" maxlength="2000" placeholder="내일 오후 3시에 30분 산책 넣어줘" required><button id="calendar-send" type="submit" class="primary">요청하기</button></div></form><p id="calendar-feedback" class="search-note" role="status">일정은 이 앱에 저장돼요. 병원 예약은 전화·예약 링크에서 접수해 주세요.</p></section>
       <section class="tool-card own-calendar"><div class="calendar-toolbar"><h2 id="calendar-month-title"></h2><div class="row-actions"><button id="calendar-prev" type="button" class="quiet" aria-label="이전 달">‹</button><button id="calendar-today" type="button" class="secondary">오늘</button><button id="calendar-next" type="button" class="quiet" aria-label="다음 달">›</button></div></div><div class="calendar-legend" aria-label="일정 종류"><span>개인 일정</span><span class="prepared">예약 준비 · 접수 전</span><span class="confirmed">병원 확정</span></div><div class="calendar-layout"><div><div class="calendar-weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div id="calendar-grid" class="calendar-grid" role="group" aria-label="월별 캘린더"></div></div><aside class="calendar-agenda"><h3 id="calendar-day-title"></h3><div id="calendar-day-list"></div><button id="calendar-day-add" type="button" class="secondary">이 날짜에 일정 추가</button></aside></div></section>
       <div class="tool-grid"><section class="tool-card"><h2>내 일정</h2><div id="events-list"></div></section><section class="tool-card"><h2>병원 예약 기록</h2><p class="section-caption">예약 준비는 병원에 접수된 상태가 아니에요.</p><div id="bookings-list"></div></section></div>
     </section>

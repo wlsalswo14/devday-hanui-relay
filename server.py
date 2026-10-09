@@ -9,7 +9,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
-from codex_bridge import CodexChat, ModelError, MODEL, EFFORT
+from codex_bridge import CodexChat, ModelError
+from google_bridge import GemmaChat, MODEL, EFFORT
 from store import Store
 from care import text, local_time
 
@@ -69,7 +70,7 @@ class App:
     def __init__(self, runtime=None, seed=None, model=None):
         runtime = runtime or ROOT / ".runtime"
         self.store = Store(runtime / "hanui.sqlite3", seed or ROOT / "data" / "knowledge.seed.json")
-        self.model = model or CodexChat(runtime)
+        self.model = model or GemmaChat(runtime)
         self.codex_enabled = self.model.available()
         self.lock = threading.Lock()
         self.care = self.store.care
@@ -203,7 +204,7 @@ class App:
             source["citations"]=[dict(c) for c in result.get("citations",[]) if c["source_id"]==source["id"]]
             for citation in source["citations"]:
                 if citation.get("reading"):
-                    citation["reading_origin"]="luna" if isinstance(self.model,CodexChat) and mode=="codex" else "demo"
+                    citation["reading_origin"]=("google" if isinstance(self.model,GemmaChat) else "luna") if isinstance(self.model,CodexChat) and mode=="codex" else "demo"
         return citations
 
     def chat(self, session_id, body):
@@ -318,7 +319,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(200, {"sessions": self.app.store.list_sessions()})
         if path == "/api/config":
             return self.respond(200, {"codex_enabled": self.app.codex_enabled,
-                "knowledge_count": self.app.store.knowledge_count(), "model": MODEL, "effort": EFFORT})
+                "knowledge_count": self.app.store.knowledge_count(),
+                "model": getattr(self.app.model,"model_name",MODEL),
+                "provider": getattr(self.app.model,"provider","test"),
+                "effort": getattr(self.app.model,"effort",EFFORT)})
         if path == "/api/knowledge":
             query = parse_qs(urlparse(self.path).query)
             try:

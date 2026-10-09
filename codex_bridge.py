@@ -259,6 +259,10 @@ def find_codex() -> str | None:
 
 
 class CodexChat:
+    model_name = MODEL
+    effort = EFFORT
+    provider = "openai"
+
     def __init__(self, runtime: Path):
         self.executable = find_codex()
         self.runtime = runtime

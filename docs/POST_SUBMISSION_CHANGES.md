@@ -61,8 +61,9 @@ Codex 검토에서는 작은 화면의 넘침, 입력창 고정, 실제 동적 �
 검증: 여섯 화면 폭의 24개 화면에서 대비·원문·해석·넘침을 확인했다. 사이드바 접기와 재접속 유지, 개별 대화 전환, 모바일 전체 메뉴·설정 위치·포커스·입력창을 확인했다. 생활기록·병원·예약·캘린더·ICS·A4 1페이지와 7가지 응답 취소 경로도 통과했다. 브라우저 오류는 없었다. 직전 화면은 `design-checkpoint-before-gemini-sidebar-20261010` 태그로 보존했다.
 # 2026-10-10: Background Playwright search
 
-The Gemma service now attempts Google search through a separate headless Playwright MCP
-before answering ordinary chat questions. It sends retrieved public keywords rather than
+The Gemma service decides whether a question needs live search as part of its DB retrieval
+planning call. Only a true search_needed decision for the current question triggers the separate
+headless Playwright MCP, using the model's public search query rather than
 patient history or clinician plans. Browser result snippets are untrusted model context;
 classical DB quotations retain the existing exact-original validation. Observed external
 links are saved as conversation search sources. No extension token is required by this path,

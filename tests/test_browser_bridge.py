@@ -96,6 +96,7 @@ class BrowserTests(unittest.TestCase):
 
     def test_search_failure_keeps_cited_db_reply_without_fake_search_success(self):
         model = GemmaChat(Path(tempfile.gettempdir()), key="fixture")
+        model.browser_decision = {"message": "수면", "needed": True, "query": "수면 건강"}
         normal = {"reply": "DB 답변", "actions": [], "citations": []}
         with patch.object(model.browser, "search", side_effect=ModelError("구글 검색 제한")):
             with patch("codex_bridge.CodexChat.respond", return_value=normal):
@@ -105,6 +106,7 @@ class BrowserTests(unittest.TestCase):
 
     def test_cancelled_search_cannot_fall_back_to_saved_db_reply(self):
         model = GemmaChat(Path(tempfile.gettempdir()), key="fixture")
+        model.browser_decision = {"message": "수면", "needed": True, "query": "수면 건강"}
         with patch.object(model.browser, "search", side_effect=RequestCancelled()):
             with patch("codex_bridge.CodexChat.respond") as normal:
                 with self.assertRaises(RequestCancelled): model.respond("수면", [], [], [])
@@ -113,3 +115,34 @@ class BrowserTests(unittest.TestCase):
     def test_extension_token_url_is_redacted_before_model_input(self):
         clean = BrowserBridge.redact("chrome-extension://x/connect?token=private-token&client=hanui")
         self.assertNotIn("private-token", clean)
+
+    def test_gemma_decision_controls_search_and_uses_its_public_query(self):
+        for needed in [False, True]:
+            model = GemmaChat(Path(tempfile.gettempdir()), key="fixture")
+            parsed = {"keywords": ["수면"], "search_needed": needed, "search_query": "최신 수면 연구" if needed else ""}
+            with patch.object(model, "execute", return_value=(parsed, [])):
+                model.retrieval_keywords("수면 이야기", [])
+            with patch.object(model.browser, "search", return_value={"urls": ["https://example.org"], "query": "최신 수면 연구"}) as search:
+                with patch("codex_bridge.CodexChat.respond", return_value={"reply": "답변", "actions": [{"type": "web", "query": "unplanned"}]}):
+                    result = model.respond("수면 이야기", [], [], [])
+            if needed:
+                search.assert_called_once_with("최신 수면 연구")
+                self.assertTrue(result["actions"][0]["completed"])
+            else:
+                search.assert_not_called()
+                self.assertEqual(result["actions"], [])
+                self.assertEqual(result["reply"], "답변")
+
+    def test_previous_question_search_decision_cannot_apply_to_new_question(self):
+        model = GemmaChat(Path(tempfile.gettempdir()), key="fixture")
+        model.browser_decision = {"message": "이전 질문", "needed": True, "query": "이전 검색"}
+        with patch.object(model.browser, "search") as search:
+            with patch("codex_bridge.CodexChat.respond", return_value={"reply": "답변", "actions": []}):
+                model.respond("새 질문", [], [], [])
+            search.assert_not_called()
+
+    def test_invalid_model_search_decision_never_becomes_automatic_search(self):
+        model = GemmaChat(Path(tempfile.gettempdir()), key="fixture")
+        with patch.object(model, "execute", return_value=({"keywords": ["수면"], "search_needed": "yes", "search_query": ""}, [])):
+            with self.assertRaises(ModelError): model.retrieval_keywords("수면", [])
+        self.assertIsNone(model.browser_decision)

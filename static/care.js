@@ -9,7 +9,6 @@ function link(label,url,className="external-link"){
 }
 function status(message,error=false,permanent=false){clearTimeout(toastTimer);$("tool-status").textContent=message;$("tool-status").className="toast"+(error?" toast-error":"");$("tool-status").hidden=!message;if(!permanent)toastTimer=setTimeout(()=>{$("tool-status").hidden=true;},6500);}
 function showView(view){
-  if(view!==currentView)cancelActiveRequest();
   currentView=view;document.querySelector(".conversation").hidden=view!=="chat";document.querySelector(".context").hidden=view!=="chat";
   document.querySelectorAll(".tool-view").forEach(p=>p.hidden=p.id!==`${view}-view`);
   document.querySelectorAll(".app-nav button").forEach(b=>{const selected=b.dataset.view===view;b.classList.toggle("active",selected);if(selected)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current");});

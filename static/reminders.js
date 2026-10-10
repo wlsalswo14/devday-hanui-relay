@@ -24,6 +24,6 @@ async function pollReminders(dismiss){
   finally{if(reminderRequest===request)reminderRequest=null;}
 }
 window.addEventListener("pagehide",cancelReminders);
-document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelReminders();else pollReminders();});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)pollReminders();});
 setInterval(()=>pollReminders(),60000);
 setTimeout(()=>pollReminders(),1500);

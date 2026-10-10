@@ -112,6 +112,7 @@ def main():
                         if view=="chat" and page.locator("#context-sidebar").is_visible():page.locator("#close-sidebar").click()
                         if view=="report":
                             expect(page.locator("#print-report")).to_be_enabled()
+                            page.locator('.report-days').evaluate('e=>e.open=true')
                             # Horizontal scrolling keeps instruction labels readable on a phone.
                             assert page.locator(".adherence-table th").first.bounding_box()["width"]>=150
                         assert page.evaluate("document.documentElement.scrollWidth<=innerWidth"),(width,view)

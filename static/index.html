@@ -13,6 +13,7 @@
   <script src="/care.js" defer></script>
   <script src="/calendar.js" defer></script>
   <script src="/guidance.js" defer></script>
+  <script src="/reminders.js" defer></script>
 </head>
 <body>
   <aside id="app-sidebar" class="app-sidebar" aria-label="메뉴">
@@ -23,7 +24,7 @@
     <button data-view="chat" class="active" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-3 3V11.5A7.5 7.5 0 0 1 9.5 4h3a7.5 7.5 0 0 1 7.5 7.5Z"/></svg><span>대화</span></button>
     <button data-view="daily"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 2v4m6-4v4M9 11h6m-6 4h4"/></svg><span>기록</span></button>
     <button data-view="library"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v15M12 5C8 2 3 4 3 4v15s5-2 9 1c4-3 9-1 9-1V4s-5-2-9 1Z"/></svg><span>자료</span></button>
-    <button data-view="calendar"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 5h2m3 0h2"/></svg><span>일정</span></button>
+    <button data-view="calendar"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 5h2m3 0h2"/></svg><span>캘린더</span></button>
     <button data-view="report"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Zm0 0v6h6M8 17v-3m4 3v-6m4 6v-4"/></svg><span>리포트</span></button>
   </nav>
     <section class="sidebar-conversations" aria-label="대화 목록"><h2>대화</h2><div id="session-list"></div><select id="session-select" class="sr-only" aria-label="대화 선택" tabindex="-1"></select></section>
@@ -39,6 +40,7 @@
   </aside>
   <header class="topbar"><button id="mobile-nav-toggle" class="quiet" type="button" aria-label="메뉴 열기" aria-controls="app-sidebar" aria-expanded="false">☰</button><a class="brand" href="/" aria-label="Hanui 홈">hanui</a></header>
   <button id="nav-backdrop" type="button" aria-label="메뉴 닫기" hidden></button>
+  <section id="calendar-reminders" class="reminder-tray" aria-label="캘린더 리마인드" role="status" hidden></section>
 
   <main class="workspace sidebar-collapsed">
     <section class="conversation" aria-label="한의학 정보 대화">
@@ -72,7 +74,7 @@
       <div id="library-results" class="library-grid"></div>
     </section>
     <section id="calendar-view" class="tool-view" hidden aria-labelledby="calendar-title">
-      <div class="view-head"><h1 id="calendar-title">일정</h1><div class="row-actions"><button id="calendar-export" class="secondary">.ics 내보내기</button><button id="new-event" class="primary">일정 추가</button></div></div>
+      <div class="view-head"><h1 id="calendar-title">캘린더</h1><div class="row-actions"><button id="calendar-export" class="secondary">.ics 내보내기</button><button id="new-event" class="primary">일정 추가</button></div></div>
       <section class="tool-card calendar-assistant"><form id="calendar-chat-form"><label for="calendar-message">일정 요청</label><div class="calendar-composer"><input id="calendar-message" maxlength="2000" placeholder="내일 오후 3시에 30분 산책 넣어줘" required><button id="calendar-send" type="submit" class="primary">보내기</button></div></form><p id="calendar-feedback" class="search-note" role="status"></p></section>
       <section class="tool-card own-calendar"><div class="calendar-toolbar"><h2 id="calendar-month-title"></h2><div class="row-actions"><button id="calendar-prev" type="button" class="quiet" aria-label="이전 달">‹</button><button id="calendar-today" type="button" class="secondary">오늘</button><button id="calendar-next" type="button" class="quiet" aria-label="다음 달">›</button></div></div><div class="calendar-legend" aria-label="일정 종류"><span>개인 일정</span><span class="prepared">예약 준비 · 접수 전</span><span class="confirmed">병원 확정</span></div><div class="calendar-layout"><div><div class="calendar-weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div id="calendar-grid" class="calendar-grid" role="group" aria-label="월별 캘린더"></div></div><aside class="calendar-agenda"><h3 id="calendar-day-title"></h3><div id="calendar-day-list"></div><button id="calendar-day-add" type="button" class="secondary">일정 추가</button></aside></div></section>
       <div class="tool-grid"><section class="tool-card"><h2>내 일정</h2><div id="events-list"></div></section><section class="tool-card"><h2>예약</h2><p class="section-caption">예약 준비 · 접수 전</p><div id="bookings-list"></div></section></div>

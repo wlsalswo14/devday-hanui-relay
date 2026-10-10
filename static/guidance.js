@@ -54,7 +54,7 @@ $("print-report").addEventListener("click",()=>{if(guidanceState.report)window.p
 async function loadReport(){
   if(!state.session)return;const sid=state.session.id,request=++guidanceState.request;
   $("report-state").textContent="기록 확인 중…";$("print-report").disabled=true;
-  try{const report=await api(`/api/sessions/${sid}/visit-report?end=${encodeURIComponent($("report-end").value||state.session.care.today)}`);if(sid!==state.session?.id||request!==guidanceState.request)return;guidanceState.report=report;renderVisitReport(report);$("report-state").textContent="근거에서 원문 확인";$("print-report").disabled=false;}
+  try{const report=await api(`/api/sessions/${sid}/visit-report?end=${encodeURIComponent($("report-end").value||state.session.care.today)}`);if(sid!==state.session?.id||request!==guidanceState.request)return;guidanceState.report=report;renderVisitReport(report);$("report-state").textContent="";$("print-report").disabled=false;}
   catch(error){if(request!==guidanceState.request)return;$("report-state").textContent=error.message;guidanceState.report=null;$("report-sheet").replaceChildren();}
 }
 function renderVisitReport(report){
@@ -62,7 +62,7 @@ function renderVisitReport(report){
   const refs=claim=>claim.evidence_ids.map(id=>evidence.get(id)).filter(Boolean);
   const header=node("header","report-header");header.append(node("h2","","2주 생활 리포트"),node("p","search-note",`${report.start} — ${report.end}`));sheet.append(header);
   const coverage=node("div","report-coverage");coverage.append(node("strong","",`발언 기록 ${report.recorded_days}일 / 14일`),node("span","",`기록 없음 ${report.missing_days}일`),patientReference(report.evidence,"기간의 근거",`${report.start} — ${report.end}의 대화에서 검증된 실천·생활 발언을 찾지 못했어요. 빈 날짜는 추정하지 않았어요.`));sheet.append(coverage);
-  const summary=node("section","report-section");summary.append(node("h3","","01 · 지침 실천 현황"));
+  const summary=node("section","report-section");summary.append(node("h3","","지침 실천"));
   if(!report.instructions.length)summary.append(node("p","empty-note","이 기간에 등록된 한의사 지침이 없어요."));
   const matrix=node("div","report-matrix"),table=node("table","adherence-table"),head=node("thead",""),tr=node("tr","");tr.append(node("th","","지침 · 근거"));report.days.forEach(d=>tr.append(node("th","",d.slice(8))));head.append(tr);table.append(head);const tbody=node("tbody","");
   report.instructions.forEach(row=>{
@@ -70,12 +70,15 @@ function renderVisitReport(report){
     const line=node("p","report-claim",`${row.counts.met}/${row.assessed}일 준수 · 기록 없음 ${row.counts.unknown}일`+(row.counts.conflict?` · 상충 ${row.counts.conflict}일`:"")+(row.counts.unassessed?` · 미판정 ${row.counts.unassessed}일`:""));line.append(document.createTextNode(" "),patientReference(refs(row.claim),`근거 ${refs(row.claim).length}`,`${row.instruction.starts_on}부터 ${report.end}까지 해당 지침을 판정할 발언 기록이 없어요. 지침 시작 전 날짜는 분모에서 제외해요.`));item.append(line,fold("집계 기준",[node("p","search-note",`${row.instruction.author} · ${row.instruction.starts_on}부터`),node("p","search-note",row.claim.text)],"report-calculation"));summary.append(item);
     const r=node("tr",""),label=node("th","",row.instruction.body);label.scope="row";r.append(label);
     row.days.forEach(day=>{const td=node("td",""),b=node("button","day-status "+day.status,{met:"●",unmet:"×",unknown:"—",unassessed:"?",conflict:"!",inactive:"·"}[day.status]);b.type="button";b.setAttribute("aria-label",`${day.date} · ${row.instruction.body} · ${adherenceLabels[day.status]}`);b.title=`${day.date} · ${adherenceLabels[day.status]}`;b.addEventListener("click",()=>openPatientEvidence(refs(day),`${day.date} · ${adherenceLabels[day.status]}. 조회 시점 ${report.generated_at}.`));td.append(b);r.append(td);});tbody.append(r);
-  });table.append(tbody);matrix.append(table);summary.append(matrix,node("p","report-legend","● 준수　× 미준수　— 기록 없음　? 미판정　! 상충　· 기간 밖"),node("p","report-method","실천율 = 준수 ÷ 판정일. 기록 없음·미판정·상충은 제외."));sheet.append(summary);
-  const detail=node("div","report-detail-grid"),trends=node("section","report-section");trends.append(node("h3","","02 · 수면·식사 추이"));
+  });table.append(tbody);matrix.append(table);summary.append(fold("날짜별 기록",[matrix,node("p","report-legend","● 준수　× 미준수　— 기록 없음　? 미판정　! 상충　· 기간 밖"),node("p","report-method","실천율 = 준수 ÷ 판정일. 기록 없음·미판정·상충은 제외.")],"report-days"));sheet.append(summary);
+  const detail=node("div","report-detail-grid"),trends=node("section","report-section");trends.append(node("h3","","수면·식사"));
   report.trends.forEach(c=>{const p=node("p","report-trend",c.text);p.append(document.createTextNode(" "),patientReference(refs(c),"근거",`${report.start} — ${report.end}의 해당 주차에 판정 가능한 기록이 없어요.`));trends.append(p);});
   report.meals.forEach(c=>{const p=node("p","report-patient-note",`${c.date} · “${c.text}”`);p.append(document.createTextNode(" "),patientReference(refs(c),"발언"));trends.append(p);});detail.append(trends);
-  const symptoms=node("section","report-section");symptoms.append(node("h3","","03 · 환자가 말한 불편감"));
+  const symptoms=node("section","report-section");symptoms.append(node("h3","","불편감"));
   if(!report.symptoms.length)symptoms.append(node("p","report-trend","기록 없음"),patientReference([],"조회 근거",`${report.start} — ${report.end}에서 검증된 불편감 발언이 없어요.`));
   report.symptoms.forEach(c=>{const p=node("p","report-patient-note",`${c.date} · “${c.text}”`);p.append(document.createTextNode(" "),patientReference(refs(c),"발언"));symptoms.append(p);});detail.append(symptoms);sheet.append(detail);
-  sheet.append(node("footer","report-footer","대화 원문·날짜에 근거한 자기보고 요약. 지침 제목과 근거에서 원문 확인."));
+  sheet.append(node("footer","report-footer","환자 자기보고 · 근거에서 원문 확인"));
 }
+let printReportDetails=[];
+window.addEventListener("beforeprint",()=>{printReportDetails=[...$("report-sheet").querySelectorAll(".report-days:not([open])")];printReportDetails.forEach(d=>d.open=true);});
+window.addEventListener("afterprint",()=>{printReportDetails.forEach(d=>d.open=false);printReportDetails=[];});

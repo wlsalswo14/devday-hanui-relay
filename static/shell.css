@@ -1,4 +1,25 @@
 @media screen {
+  #report-sheet { max-width:850px; margin:0 auto; padding:16px 0; border:0; border-radius:0; box-shadow:none; gap:20px; }
+  #report-sheet .report-header { border:0; padding:0; margin:0; }
+  #report-sheet .report-header h2 { display:none; }
+  #report-sheet .report-header p { margin:0; color:#61718a; font-size:13px; }
+  #report-sheet .report-section h3 { margin:0 0 12px; font-size:16px; }
+  #report-sheet .report-coverage { display:flex; flex-wrap:wrap; gap:8px 18px; padding:0 0 20px; border-bottom:1px solid #e7ebf2; }
+  #report-sheet .report-coverage strong { color:#283a54; font-weight:500; }
+  #report-sheet .report-instruction { padding:14px 84px 14px 0; }
+  #report-sheet .report-rate { font-size:28px; font-weight:600; }
+  #report-sheet .report-claim { margin:6px 0 0; font-size:13px; color:#61718a; }
+  #report-sheet .report-calculation,#report-sheet .report-days { margin-top:10px; font-size:12px; color:#61718a; }
+  #report-sheet .report-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
+  #report-sheet .report-trend,#report-sheet .report-patient-note { margin:10px 0; font-size:14px; line-height:1.7; }
+  #report-sheet .report-footer { font-size:12px; color:#61718a; }
+  @media (max-width:700px) { #report-sheet .report-detail-grid { grid-template-columns:1fr; gap:20px; } }
+  .reminder-tray { position:fixed; z-index:60; top:70px; right:24px; width:min(340px,calc(100vw - 32px)); display:grid; gap:10px; max-height:50vh; overflow:auto; }
+  .reminder-tray[hidden] { display:none; }
+  .reminder-card { padding:16px; border:1px solid #dce3f0; border-radius:18px; background:#fff; box-shadow:0 8px 30px #23355215; }
+  .reminder-heading { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:12px; color:#526681; }
+  .reminder-card strong { display:block; font-size:15px; }
+  .reminder-card p { margin:8px 0; font-size:14px; color:#526681; }
   .nav-icon { width:20px; height:20px; flex:none; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
   .session-row { display:flex; align-items:center; gap:2px; min-width:0; border-radius:18px; }
   .session-row:hover { background:var(--hn-sb-hover); }
@@ -596,3 +617,5 @@
     body.nav-open #app-sidebar { visibility:visible; }
   }
 }
+
+@media print { .reminder-tray { display:none !important; } }

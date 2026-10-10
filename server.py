@@ -14,6 +14,7 @@ from google_bridge import GemmaChat, MODEL, EFFORT
 from request_lifecycle import RequestManager, RequestCancelled, check_cancelled
 from store import Store
 from care import text, local_time
+from reminders import Reminders
 
 ROOT = Path(__file__).resolve().parent
 
@@ -76,6 +77,7 @@ class App:
         self.lock = threading.Lock()
         self.requests = RequestManager()
         self.care = self.store.care
+        self.reminders = Reminders(self.store, self.model)
 
     def web_search(self, session_id, body, kind):
         self.store.get_session(session_id)
@@ -376,7 +378,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, self.app.store.get_session(match[1]))
             except KeyError:
                 return self.respond(404, {"error": "대화를 찾지 못했어요."})
-        files = {"/": "index.html", "/app.css": "app.css", "/shell.css": "shell.css", "/report-print.css": "report-print.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/guidance.js": "guidance.js", "/favicon.svg": "favicon.svg"}
+        files = {"/": "index.html", "/app.css": "app.css", "/shell.css": "shell.css", "/report-print.css": "report-print.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/guidance.js": "guidance.js", "/reminders.js": "reminders.js", "/favicon.svg": "favicon.svg"}
         if path in files:
             file = ROOT / "static" / files[path]
             if file.exists():
@@ -422,6 +424,10 @@ class Handler(BaseHTTPRequestHandler):
             if match:
                 with self.app.requests.scope(self.connection, body.get("request_id")):
                     return self.respond(200, self.app.chat(match[1], body))
+            match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/reminders", path)
+            if match:
+                with self.app.requests.scope(self.connection, body.get("request_id")):
+                    return self.respond(200, self.app.reminders.poll(match[1], body.get("dismiss")))
             match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(checkins|goals|events|bookings|hospitals|web|guidance)(?:/([a-f0-9]{32}))?", path)
             if match:
                 session_id, kind, item = match.groups()

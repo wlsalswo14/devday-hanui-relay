@@ -101,9 +101,18 @@ class BrowserTests(unittest.TestCase):
         normal = {"reply": "DB 답변", "actions": [], "citations": []}
         with patch.object(model.browser, "search", side_effect=ModelError("구글 검색 제한")):
             with patch("codex_bridge.CodexChat.respond", return_value=normal):
-                result = model.respond("수면", [], [], [])
+                result = model.respond("수면", [], [], [{"id": "fixture", "body": "고문헌 원문"}])
         self.assertIn("DB 자료로 답했어요", result["reply"])
         self.assertFalse(result["actions"][0]["completed"])
+
+    def test_failed_search_without_db_evidence_cannot_claim_a_db_answer(self):
+        model = GemmaChat(Path(tempfile.gettempdir()), key="fixture")
+        model.browser_decision = {"message": "최신 뉴스 검색", "needed": True, "query": "최신 뉴스"}
+        with patch.object(model.browser, "search", side_effect=ModelError("구글 자동 검색 제한")), \
+             patch("codex_bridge.CodexChat.respond") as answer:
+            with self.assertRaisesRegex(ModelError, "구글 자동 검색 제한"):
+                model.respond("최신 뉴스 검색", [], [], [], require_classical=False, task="web")
+            answer.assert_not_called()
 
     def test_cancelled_search_cannot_fall_back_to_saved_db_reply(self):
         model = GemmaChat(Path(tempfile.gettempdir()), key="fixture")

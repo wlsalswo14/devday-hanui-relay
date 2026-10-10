@@ -504,6 +504,12 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     Handler.app = App()
+    if isinstance(Handler.app.model, GemmaChat) and Handler.app.model.browser_search_enabled:
+        from start_browser_search import start
+        try:
+            start()
+        except (OSError, RuntimeError) as exc:
+            print(f"Background search unavailable: {exc}", flush=True)
     server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     print(f"Hanui Relay: http://127.0.0.1:{args.port}", flush=True)
     try:

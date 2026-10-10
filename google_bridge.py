@@ -171,6 +171,8 @@ class GemmaChat(CodexChat):
             except ModelError as exc:
                 check_cancelled()
                 search_error = str(exc)
+        if search_error and not sources:
+            raise ModelError(search_error)
         result = super().respond(message, history, memories, sources, require_classical=require_classical, system=system, task=task)
         # The model's retrieval decision owns web execution; do not run the older
         # provider-native search path as an additional or unapproved search.

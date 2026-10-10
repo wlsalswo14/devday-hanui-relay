@@ -9,10 +9,10 @@ $hanuiChromePaths = @(
 $hanuiChrome = $hanuiChromePaths | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (-not $hanuiChrome) { throw 'Google Chrome is required to open Hanui. Install Chrome and run this script again.' }
 $hanuiReady = $false
+python start_browser_search.py
+if ($LASTEXITCODE -ne 0) { Write-Warning 'Background search unavailable; DB conversation remains available.' }
 try { $hanuiReady = (Invoke-WebRequest -Uri "$hanuiUrl/api/config" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } catch {}
 if (-not $hanuiReady) {
-    python start_browser_search.py
-    if ($LASTEXITCODE -ne 0) { Write-Warning 'Background search unavailable; DB conversation remains available.' }
     New-Item -ItemType Directory -Path (Join-Path $PSScriptRoot '.runtime') -Force | Out-Null
     $hanuiPython = (Get-Command python -CommandType Application | Select-Object -First 1).Source
     $hanuiServer = Start-Process -FilePath $hanuiPython -ArgumentList '-X','utf8','server.py','--port','8765' -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $PSScriptRoot '.runtime/server.stdout.log') -RedirectStandardError (Join-Path $PSScriptRoot '.runtime/server.stderr.log')

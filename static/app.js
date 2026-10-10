@@ -8,8 +8,9 @@ function fold(label,items,className="secondary-details"){const d=node("details",
 function shortText(text,max=42){return text.length>max?text.slice(0,max-1)+"…":text;}
 function sourceName(record){return record.category==="classical"?`${record.book} · ${record.section}`:record.title;}
 function revealEditor(id){const editor=$(id);if(editor)editor.open=true;}
-function savedId(){try{return localStorage.getItem("hanui_session");}catch{return null;}}
-function saveId(id){try{localStorage.setItem("hanui_session",id);}catch{/* In-memory session remains usable. */}}
+function sessionStorageKey(){return "hanui_session"+(accountInfo?.user?"_"+accountInfo.user.id:"");}
+function savedId(){try{return localStorage.getItem(sessionStorageKey());}catch{return null;}}
+function saveId(id){try{localStorage.setItem(sessionStorageKey(),id);}catch{/* In-memory session remains usable. */}}
 let activeAI=null, uiGeneration=0, loadingClock=null;
 const mobileNav=matchMedia("(max-width:700px)");
 let desktopNavCollapsed=false;
@@ -54,7 +55,7 @@ function cancelActiveRequest(){
 window.addEventListener("pagehide",cancelActiveRequest);
 async function api(path, options={}) {
   let request=null;
-  const ai=options.method==="POST"&&/\/(chat|hospitals|web|guidance|report-draft)$/.test(path)&&(!path.endsWith("/guidance")||JSON.parse(options.body||"{}").start_conversation);
+  const ai=options.method==="POST"&&(/\/(chat|hospitals|web|guidance|report-draft)$/.test(path)||path==="/api/care-home/start")&&(!path.endsWith("/guidance")||JSON.parse(options.body||"{}").start_conversation);
   if(ai){request={id:crypto.randomUUID().replaceAll("-",""),controller:new AbortController()};activeAI=request;options={...options,signal:request.controller.signal,body:JSON.stringify({...JSON.parse(options.body||"{}"),request_id:request.id})};busy(true);}
   try{
   const response=await fetch(path,{headers:{"Content-Type":"application/json"},...options});
@@ -96,7 +97,7 @@ function setModeDescription(){
   $("mode-description").textContent=state.mode==="codex"?"에이전트":"샘플 · AI 호출 없음";
 }
 function openSource(record){
-  $("source-title").textContent=sourceName(record);$("source-meta").textContent=`${record.publisher} · ${record.retrieved_at}`;
+  $("source-title").textContent=sourceName(record);$("source-meta").textContent=`${record.category==="classical"?"고문헌 기록":"현대 공개 자료"} · ${record.publisher} · ${record.retrieved_at}`;
   $("source-body").textContent=record.body;$("source-limit").textContent=record.limitations;
   $("source-location").textContent=record.location?`${record.book} · ${record.section} · ${record.location} · 판본 ${record.source_revision}`:"";
   $("source-location").hidden=!record.location;
@@ -140,6 +141,7 @@ function render(){
   records.forEach(record=>{const button=node("button","source-card");button.type="button";button.title=record.title;button.append(node("strong","",shortText(sourceName(record),45)));button.addEventListener("click",()=>openSource(record));sources.append(button);});
   messages.scrollTop=messages.scrollHeight;
   if(typeof renderCare==="function")renderCare();
+  if(typeof refreshCareHome==="function")refreshCareHome();
   syncSidebar();
 }
 function updateCount(){$("counter").textContent=`${$("message").value.length} / 2000`;}
@@ -175,15 +177,16 @@ $("source-dialog").addEventListener("click",event=>{if(event.target===$("source-
 let defaultSystemPrompt="";
 $("system-instructions-open").addEventListener("click",async()=>{
   const opener=$("system-instructions-open");opener.disabled=true;
-  try{const settings=await api("/api/system-instructions");defaultSystemPrompt=settings.default_prompt;$("system-instructions-text").value=settings.prompt;$("system-instructions-status").textContent="";$("system-instructions-dialog").showModal();$("system-instructions-text").focus();}catch(error){showError(error.message);}finally{opener.disabled=false;}
+  try{const [settings,profile]=await Promise.all([api("/api/system-instructions"),api("/api/health-profile")]);defaultSystemPrompt=settings.default_prompt;$("system-instructions-text").value=settings.prompt;$("health-profile-text").value=profile.text;$("system-instructions-status").textContent="";$("system-instructions-dialog").showModal();$("system-instructions-text").focus();}catch(error){showError(error.message);}finally{opener.disabled=false;}
 });
 $("system-instructions-default").addEventListener("click",()=>{$("system-instructions-text").value=defaultSystemPrompt;$("system-instructions-status").textContent="저장하면 기본값으로 적용돼요.";});
 $("system-instructions-form").addEventListener("submit",async event=>{
   event.preventDefault();const save=$("system-instructions-save");save.disabled=true;
-  try{const settings=await api("/api/system-instructions",{method:"POST",body:JSON.stringify({prompt:$("system-instructions-text").value})});$("system-instructions-text").value=settings.prompt;$("system-instructions-status").textContent="저장했어요.";}catch(error){$("system-instructions-status").textContent=error.message;}finally{save.disabled=false;}
+  try{const settings=await api("/api/preferences",{method:"POST",body:JSON.stringify({prompt:$("system-instructions-text").value,profile:$("health-profile-text").value})});$("system-instructions-text").value=settings.prompt;$("system-instructions-status").textContent="저장했어요.";}catch(error){$("system-instructions-status").textContent=error.message;}finally{save.disabled=false;}
 });
 async function init(){
   busy(true);try{
+    if(typeof prepareAccount==="function"&&!await prepareAccount())return;
     state.config=await api("/api/config");const option=$("mode").querySelector('option[value="codex"]');option.disabled=!state.config.codex_enabled;
     if(!state.config.codex_enabled){state.mode="demo";$("mode").value="demo";}setModeDescription();
     const shared=new URLSearchParams(location.search).get("session");const id=/^[a-f0-9]{32}$/.test(shared||"")?shared:savedId();if(id){try{state.session=await api(`/api/sessions/${id}`);}catch(error){if(error.status!==404)throw error;}}

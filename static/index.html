@@ -8,13 +8,16 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app.css">
   <link rel="stylesheet" href="/shell.css">
+  <link rel="stylesheet" href="/care-home.css">
   <link rel="stylesheet" href="/report-print.css" media="print">
+  <script src="/account.js" defer></script>
   <script src="/app.js" defer></script>
   <script src="/care.js" defer></script>
   <script src="/calendar.js" defer></script>
   <script src="/guidance.js" defer></script>
   <script src="/report.js" defer></script>
   <script src="/reminders.js" defer></script>
+  <script src="/care-home.js" defer></script>
 </head>
 <body>
   <aside id="app-sidebar" class="app-sidebar" aria-label="메뉴">
@@ -41,12 +44,14 @@
     </div>
     <button id="system-instructions-open" class="quiet system-instructions-link" type="button"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg><span>시스템 지침</span></button>
   </aside>
+  <dialog id="account-dialog" aria-labelledby="account-title"><div class="dialog-top"><h2 id="account-title">Google 로그인</h2></div><div id="google-signin"></div><p id="account-status" role="status"></p></dialog>
   <header class="topbar"><button id="mobile-nav-toggle" class="quiet" type="button" aria-label="메뉴 열기" aria-controls="app-sidebar" aria-expanded="false">☰</button><a class="brand" href="/" aria-label="Hanui 홈">hanui</a></header>
   <button id="nav-backdrop" type="button" aria-label="메뉴 닫기" hidden></button>
   <section id="calendar-reminders" class="reminder-tray" aria-label="캘린더 리마인드" role="status" hidden></section>
 
   <main class="workspace sidebar-collapsed">
     <section class="conversation" aria-label="한의학 정보 대화">
+      <section id="care-home" class="care-home" aria-label="개인 관리"><div class="care-home-heading"><button id="care-home-toggle" class="quiet" type="button" aria-expanded="false" aria-controls="care-home-body">관리 시작</button><div><button id="care-week-open" class="quiet" type="button">주간 요약</button><button id="care-settings-open" class="quiet" type="button" aria-label="관리 알림 설정">알림</button></div></div><div id="care-home-body" hidden></div></section>
       <div class="sr-only" id="mode-description" role="status"></div>
       <div id="messages" class="messages" role="log" aria-label="대화 내용" aria-live="polite"></div>
       <div id="loading" class="loading" hidden><span class="loading-dot"></span><span id="loading-message">생각 중…</span> <button id="stop-response" type="button" class="quiet">중단</button></div>
@@ -91,6 +96,9 @@
       </article>
     </section>
   </main>
+  <dialog id="care-week-dialog" aria-labelledby="care-week-title"><div class="dialog-top"><h2 id="care-week-title">이번 주</h2><button type="button" class="quiet close-dialog">닫기 ×</button></div><div id="care-week-body" class="care-week-details"></div><button id="care-week-report" class="secondary" type="button">리포트로 가져오기</button></dialog>
+  <dialog id="care-settings-dialog" aria-labelledby="care-settings-title"><div class="dialog-top"><h2 id="care-settings-title">관리 알림</h2><button type="button" class="quiet close-dialog">닫기 ×</button></div><form id="care-settings-form" class="fields"><label>매일 확인할 시간<input id="care-notification-time" type="time" value="20:00" required></label><label class="check-label"><input id="care-notification-enabled" type="checkbox">브라우저 알림</label><p class="section-caption">앱을 닫아도 알림 · 로컬 서버 실행 필요</p><button class="primary" type="submit">저장</button><p id="care-notification-status" role="status"></p></form></dialog>
+  <dialog id="care-visit-dialog" aria-labelledby="care-visit-title"><div class="dialog-top"><h2 id="care-visit-title">방문 후 관리</h2><button type="button" class="quiet close-dialog">닫기 ×</button></div><form id="care-visit-form" class="fields"><label>방문 날짜<input id="care-visited-date" type="date" required></label><label>받은 생활 지침<textarea id="care-visit-instructions" rows="5" maxlength="4000" required></textarea></label><p class="section-caption">사용자가 전달한 지침으로 저장</p><button class="primary" type="submit">관리로 연결</button><p id="care-visit-status" role="status"></p></form></dialog>
   <div id="tool-status" class="toast" role="status" hidden></div>
   <dialog id="report-draft-dialog" aria-labelledby="report-draft-heading"><div class="dialog-top"><h2 id="report-draft-heading">에이전트 정리</h2><button type="button" class="quiet close-dialog">닫기 ×</button></div><form id="report-draft-form" class="fields"><label class="sr-only" for="report-draft-instruction">정리할 내용과 방식</label><input id="report-draft-instruction" maxlength="500" placeholder="예: 내원 전에 보여줄 리포트로 정리해 줘"><button id="generate-report-draft" type="submit" class="primary">초안 만들기</button></form><p id="report-draft-status" class="search-note" role="status"></p><button id="report-draft-stop" type="button" class="quiet" hidden>중단</button><section id="report-draft-preview" hidden><h3 id="report-draft-title"></h3><div id="report-draft-body"></div><button id="apply-report-draft" type="button" class="primary">편집기에 적용</button></section></dialog>
   <dialog id="guidance-dialog" aria-labelledby="guidance-title"><div class="dialog-top"><span class="eyebrow">한의사 지침 → 개인 목표</span><button type="button" class="quiet close-dialog">닫기 ×</button></div><h2 id="guidance-title">한의사 지침 입력</h2><form id="guidance-form" class="fields"><div class="field-grid"><label>입력자 표기<input id="guidance-author" maxlength="80" value="담당 한의사" required></label><label>지침 시작일<input id="guidance-start" type="date" required></label></div><label>한의사 진단·평가 (선택)<textarea id="guidance-assessment" rows="3" maxlength="2000" placeholder="한의사가 기록한 진단과 생활 관리 맥락"></textarea></label><label>생활 지침 원문<textarea id="guidance-text" rows="6" maxlength="4000" placeholder="취침 23시 전, 찬 음식 줄이기, 커피 1잔 이하, 점심 후 산책 10분" required></textarea></label><p class="section-caption">쉼표·줄바꿈으로 구분</p><button class="primary">지침·개인 목표 저장</button></form></dialog>

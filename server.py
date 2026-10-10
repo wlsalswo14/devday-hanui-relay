@@ -17,6 +17,9 @@ from care import text, local_time
 from reminders import Reminders
 from report_documents import ReportDocuments
 from conversation_agents import run_conversation
+from care_hub import CareHub
+from push_notifications import PushNotifications, NotificationScheduler
+from google_accounts import GoogleAccounts, cookie_value
 
 ROOT = Path(__file__).resolve().parent
 
@@ -73,6 +76,8 @@ def demo_response(message, history, memories, sources):
 class App:
     def __init__(self, runtime=None, seed=None, model=None):
         runtime = runtime or ROOT / ".runtime"
+        self.runtime = runtime
+        self.accounts = None
         self.store = Store(runtime / "hanui.sqlite3", seed or ROOT / "data" / "knowledge.seed.json")
         self.model = model or GemmaChat(runtime)
         self.codex_enabled = self.model.available()
@@ -81,6 +86,8 @@ class App:
         self.care = self.store.care
         self.reminders = Reminders(self.store, self.model)
         self.report_documents = ReportDocuments(self.store)
+        self.hub = CareHub(self.store,self.model)
+        self.push = PushNotifications(self.store,runtime)
 
     def web_search(self, session_id, body, kind):
         self.store.get_session(session_id)
@@ -325,7 +332,7 @@ class Handler(BaseHTTPRequestHandler):
             # Completed DB writes remain available when the user returns.
             pass
 
-    def respond(self, status, body, content_type="application/json; charset=utf-8"):
+    def respond(self, status, body, content_type="application/json; charset=utf-8", headers=()):
         if not isinstance(body, bytes):
             body = json.dumps(body, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -333,14 +340,79 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; style-src 'self' https://accounts.google.com/gsi/style; script-src 'self' https://accounts.google.com/gsi/client; connect-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; worker-src 'self'; frame-ancestors 'none'; base-uri 'none'")
+        for name,value in headers:
+            self.send_header(name,value)
         self.end_headers()
         self.wfile.write(body)
+
+    def select_account(self):
+        root = type(self).app
+        self.app = root
+        auth = root.accounts
+        path = urlparse(self.path).path
+        if path.startswith("/api/auth"):
+            return self.auth_route(auth,path)
+        if not auth or not auth.enabled or not path.startswith("/api/") or path in {"/api/config","/api/knowledge"}:
+            return True
+        user = auth.user(cookie_value(self.headers.get("Cookie"),"hanui_session"))
+        if not user:
+            self.respond(401,{"error":"Google 계정으로 로그인해 주세요."})
+            return False
+        if self.command in {"POST","DELETE"} and self.headers.get("Origin") != "http://"+self.headers.get("Host",""):
+            self.respond(403,{"error":"요청 출처를 확인하지 못했어요."})
+            return False
+        self.app = auth.app_for(user)
+        return True
+
+    def auth_route(self, auth, path):
+        try:
+            if self.command=="GET" and path=="/api/auth":
+                user = auth.user(cookie_value(self.headers.get("Cookie"),"hanui_session")) if auth else None
+                data = {"enabled":bool(auth and auth.enabled),"client_id":auth.client_id if auth else "","user":user}
+                headers = []
+                if auth and auth.enabled and not user:
+                    data["nonce"] = auth.challenge()
+                    headers = [("Set-Cookie","hanui_login="+data["nonce"]+"; HttpOnly; SameSite=Strict; Path=/api/auth; Max-Age=300")]
+                self.respond(200,data,headers=headers)
+                return False
+            if self.command!="POST" or not auth or self.headers.get("Origin")!="http://"+self.headers.get("Host","") or self.headers.get("Content-Type","").split(";")[0]!="application/json":
+                self.respond(403,{"error":"로그인 요청 출처를 확인해 주세요."})
+                return False
+            length = int(self.headers.get("Content-Length","0"))
+            if not 0<length<=20000:
+                raise ValueError("로그인 요청을 확인해 주세요.")
+            body = json.loads(self.rfile.read(length))
+            if not isinstance(body,dict):
+                raise ValueError("로그인 요청을 확인해 주세요.")
+            if path=="/api/auth/login":
+                token,user = auth.login(body.get("credential"),cookie_value(self.headers.get("Cookie"),"hanui_login"))
+                self.respond(200,{"user":user},headers=[("Set-Cookie","hanui_session="+token+"; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000"),("Set-Cookie","hanui_login=; HttpOnly; SameSite=Strict; Path=/api/auth; Max-Age=0")])
+            elif path=="/api/auth/logout":
+                auth.logout(cookie_value(self.headers.get("Cookie"),"hanui_session"))
+                self.respond(200,{"logged_out":True},headers=[("Set-Cookie","hanui_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0")])
+            else:
+                self.respond(404,{"error":"로그인 경로를 찾지 못했어요."})
+        except (ValueError,TypeError):
+            self.respond(400,{"error":"Google 로그인 설정 또는 인증 정보를 확인해 주세요."})
+        return False
 
     def do_GET(self):
         if not self.validate_origin():
             return self.respond(403, {"error": "이 주소에서 요청할 수 없어요."})
+        if not self.select_account():
+            return
         path = urlparse(self.path).path
+        if path == "/api/health-profile":
+            return self.respond(200,self.app.store.profile.get())
+        if path == "/api/care-home":
+            return self.respond(200,self.app.hub.dashboard())
+        if path == "/api/notifications":
+            try:
+                _,key = self.app.push.keys()
+                return self.respond(200,{**self.app.push.settings(),"public_key":key})
+            except ImportError:
+                return self.respond(503,{"error":"알림 모듈 설치가 필요해요."})
         if path == "/api/sessions":
             return self.respond(200, {"sessions": self.app.store.list_sessions()})
         if path == "/api/system-instructions":
@@ -389,6 +461,7 @@ class Handler(BaseHTTPRequestHandler):
             except KeyError:
                 return self.respond(404, {"error": "대화를 찾지 못했어요."})
         files = {"/": "index.html", "/app.css": "app.css", "/shell.css": "shell.css", "/report-print.css": "report-print.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/guidance.js": "guidance.js", "/reminders.js": "reminders.js", "/report.js": "report.js", "/favicon.svg": "favicon.svg"}
+        files.update({"/care-home.js":"care-home.js","/care-home.css":"care-home.css","/account.js":"account.js","/sw.js":"sw.js"})
         if path in files:
             file = ROOT / "static" / files[path]
             if file.exists():
@@ -405,11 +478,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if not self.validate_origin():
             return self.respond(403, {"error": "이 주소에서 요청할 수 없어요."})
+        if not self.select_account():
+            return
         if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
             return self.respond(415, {"error": "JSON 요청만 받을 수 있어요."})
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            limit = 100000 if re.fullmatch(r"/api/sessions/[a-f0-9]{32}/report(?:-draft)?", urlparse(self.path).path) else 20000
+            limit = 100000 if re.fullmatch(r"/api/sessions/[a-f0-9]{32}/report(?:-draft)?", urlparse(self.path).path) or urlparse(self.path).path in {"/api/health-profile","/api/preferences"} else 20000
             if not 0 < length <= limit:
                 self.close_connection = True
                 return self.respond(413, {"error": "요청이 너무 크거나 비어 있어요."})
@@ -417,6 +492,31 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 raise ValueError("요청 형식이 올바르지 않아요.")
             path = urlparse(self.path).path
+            if path == "/api/health-profile":
+                return self.respond(200,self.app.store.profile.save(body.get("text")))
+            if path == "/api/preferences":
+                with self.app.store.connect():
+                    settings = self.app.store.save_system_instructions(body.get("prompt"))
+                    profile = self.app.store.profile.save(body.get("profile"))
+                return self.respond(200,{**settings,"profile":profile})
+            if path in {"/api/care-home/start","/api/care-home/followup","/api/care-home/answer"}:
+                if not self.app.lock.acquire(timeout=.5):
+                    raise ValueError("이전 작업이 끝난 뒤 다시 시도해 주세요.")
+                try:
+                    if path.endswith("/start"):
+                        with self.app.requests.scope(self.connection,body.get("request_id")):
+                            return self.respond(200,self.app.hub.start(body))
+                    if path.endswith("/answer"):
+                        return self.respond(200,self.app.hub.answer(body))
+                    return self.respond(200,self.app.hub.followup(body))
+                finally:
+                    self.app.lock.release()
+            if path=="/api/notifications":
+                return self.respond(200,self.app.push.save_settings(body))
+            if path=="/api/notifications/subscribe":
+                return self.respond(200,self.app.push.subscribe(body))
+            if path=="/api/notifications/unsubscribe":
+                return self.respond(200,self.app.push.unsubscribe(body.get("endpoint")))
             if path == "/api/system-instructions":
                 return self.respond(200, self.app.store.save_system_instructions(body.get("prompt")))
             cancel = re.fullmatch(r"/api/requests/([a-f0-9]{32})/cancel", path)
@@ -473,6 +573,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         if not self.validate_origin():
             return self.respond(403, {"error": "이 주소에서 요청할 수 없어요."})
+        if not self.select_account():
+            return
         child = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/(goals|events|memories|checkins|patient-records)/([a-f0-9]{32}|\d{4}-\d{2}-\d{2})", urlparse(self.path).path)
         if child:
             try:
@@ -505,6 +607,9 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
     Handler.app = App()
+    Handler.app.accounts = GoogleAccounts(Handler.app)
+    scheduler = NotificationScheduler(Handler.app)
+    scheduler.start()
     if isinstance(Handler.app.model, GemmaChat) and Handler.app.model.browser_search_enabled:
         from start_browser_search import start
         try:
@@ -518,6 +623,7 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
+        scheduler.stop()
         server.server_close()
 
 

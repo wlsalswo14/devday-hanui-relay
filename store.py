@@ -15,6 +15,7 @@ from care import CareStore
 from guidance import GuidanceStore
 from classical_db import ClassicalDB
 from system_instructions import DEFAULT_SYSTEM_PROMPT
+from profile_memory import ProfileMemory
 
 
 def now() -> str:
@@ -57,6 +58,7 @@ class Store:
                 db.execute("ALTER TABLE sessions ADD COLUMN title TEXT NOT NULL DEFAULT ''")
         self.care = CareStore(self)
         self.guidance = GuidanceStore(self)
+        self.profile = ProfileMemory(self)
         self.refresh_knowledge()
 
     @contextmanager

@@ -42,7 +42,7 @@ def main():
                     expect(page.locator("#stop-response")).to_be_visible()
                     assert provider.started.wait(3),action
                     if action=="stop":page.locator("#stop-response").click()
-                    elif action=="view":page.locator('[data-view="daily"]').click()
+                    elif action=="view":page.locator('[data-view="calendar"]').click()
                     elif action=="new-chat":
                         expect(page.locator("#new-chat")).to_be_disabled()
                         page.evaluate("document.getElementById('new-chat').click()")

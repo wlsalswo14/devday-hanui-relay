@@ -102,6 +102,23 @@ class ConversationAgentTests(unittest.TestCase):
             self.app.chat(self.sid, {"message": "그 문장이 무슨 뜻이야?"})
         self.assertEqual(self.calls[0][1]["RECENT_CONVERSATION"][-1]["citations"][0]["quote"], "起居有常")
 
+    def test_conversation_context_keeps_older_turns_and_complete_message_text(self):
+        from conversation_agents import conversation_context
+        messages = [{"role": "user" if i % 2 == 0 else "assistant", "content": str(i)} for i in range(40)]
+        messages[0]["content"] = "처음에 정한 약속"
+        messages[-1]["content"] = "긴 답변" * 1000
+        context = conversation_context({"messages": messages})
+        self.assertEqual(len(context), 40)
+        self.assertEqual(context[0]["content"], "처음에 정한 약속")
+        self.assertEqual(context[-1]["content"], messages[-1]["content"])
+
+    def test_conversation_context_bounds_large_histories_without_mixing_sessions(self):
+        from conversation_agents import conversation_context
+        messages = [{"role": "user" if i % 2 == 0 else "assistant", "content": str(i) + "가" * 6000} for i in range(80)]
+        context = conversation_context({"messages": messages})
+        self.assertLess(len(context), len(messages))
+        self.assertEqual(context[-1]["content"], messages[-1]["content"])
+
     def test_web_task_runs_search_even_when_query_agent_returns_false(self):
         self.main.browser_search_enabled = True
         self.app.store.save_turn(self.sid, "질병관리청 수면 안내가 궁금해.", "관련 자료를 확인해볼 수 있어요.", [], [], "codex")

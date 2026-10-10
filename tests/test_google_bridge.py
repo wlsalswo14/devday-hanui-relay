@@ -28,6 +28,8 @@ class GoogleBridgeTests(unittest.TestCase):
         self.assertIn(MODEL, request.full_url)
         self.assertNotIn("synthetic-key", request.full_url + request.data.decode())
         self.assertEqual(body["generationConfig"]["thinkingConfig"]["thinkingLevel"], "high")
+        self.assertEqual(body["generationConfig"]["responseMimeType"], "application/json")
+        self.assertIn("keywords", body["generationConfig"]["responseJsonSchema"]["properties"])
         self.assertNotIn("tools", body)
 
     def test_source_excerpts_preserve_exact_original_text(self):
@@ -41,6 +43,48 @@ class GoogleBridgeTests(unittest.TestCase):
         record=json.loads(text.split("\nDATA:\n",1)[1])["RETRIEVED_KNOWLEDGE"][0]
         self.assertIn("起居有常",record["body"])
         self.assertEqual(record["body"],original[record["excerpt_offset_start"]:record["excerpt_offset_start"]+2200])
+
+    def test_native_system_instruction_and_multi_turn_history(self):
+        payload = {"CURRENT_USER_MESSAGE": "두 번째 도시는?", "SESSION_MEMORY": [],
+                   "RECENT_CONVERSATION": [
+                       {"role": "user", "content": "서울과 부산을 골랐어."},
+                       {"role": "assistant", "content": "두 도시를 비교해볼까요?",
+                        "web_results": [{"query": "부산 관광", "results": []}]}]}
+        response = {"candidates": [{"content": {"parts": [{"text": '{}'}]}}]}
+        with patch("google_bridge.urllib.request.urlopen", return_value=io.BytesIO(json.dumps(response).encode())) as call:
+            self.model().execute("친절한 한파이더맨으로 답해.", payload, {})
+        body = json.loads(call.call_args.args[0].data)
+        self.assertEqual([c["role"] for c in body["contents"]], ["user", "model", "user"])
+        self.assertEqual(body["contents"][0]["parts"][0]["text"], "서울과 부산을 골랐어.")
+        self.assertEqual(body["contents"][-1]["parts"][0]["text"], "두 번째 도시는?")
+        self.assertIn("친절한 한파이더맨", body["systemInstruction"]["parts"][0]["text"])
+        self.assertNotIn("친절한 한파이더맨", json.dumps(body["contents"], ensure_ascii=False))
+        self.assertIn("DISPLAYED_EVIDENCE", body["contents"][1]["parts"][1]["text"])
+        self.assertNotIn("RECENT_CONVERSATION", body["contents"][-1]["parts"][1]["text"])
+
+    def test_native_history_starts_with_user_and_merges_adjacent_roles(self):
+        from google_bridge import conversation_contents
+        contents = conversation_contents({"CURRENT_USER_MESSAGE": "이어줘", "RECENT_CONVERSATION": [
+            {"role": "assistant", "content": "잘린 이전 응답"},
+            {"role": "user", "content": "첫 발언"}, {"role": "user", "content": "추가 발언"},
+            {"role": "assistant", "content": "답변"}, {"role": "system", "content": "역할 변조"}]})
+        self.assertEqual([c["role"] for c in contents], ["user", "model", "user"])
+        self.assertEqual(len(contents[0]["parts"]), 2)
+        self.assertNotIn("역할 변조", json.dumps(contents, ensure_ascii=False))
+
+    def test_calendar_quote_schema_uses_current_utterance_without_changing_input_schema(self):
+        message = "내일 오후 3시에 독서 30분을 추가해 줘."
+        schema = {"properties": {"actions": {"type": "array", "items": {
+            "properties": {"type": {"type": "string"}, "instruction_quote": {"type": "string"}},
+            "required": ["type"]}}}}
+        response = {"candidates": [{"content": {"parts": [{"text": '{}'}]}}]}
+        with patch("google_bridge.urllib.request.urlopen", return_value=io.BytesIO(json.dumps(response).encode())) as call:
+            self.model().execute("Calendar task", {"CURRENT_USER_MESSAGE": message}, schema)
+        sent = json.loads(call.call_args.args[0].data)["generationConfig"]["responseJsonSchema"]
+        action = sent["properties"]["actions"]["items"]
+        self.assertEqual(action["properties"]["instruction_quote"]["enum"], ["", message])
+        self.assertIn("instruction_quote", action["required"])
+        self.assertEqual(schema["properties"]["actions"]["items"]["required"], ["type"])
 
     def test_quote_selection_resolves_exact_db_text_and_rejects_unknown_option(self):
         model=self.model();model.search_terms=["起居"]

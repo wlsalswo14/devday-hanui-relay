@@ -30,6 +30,24 @@
 
 ## 실행
 
+### 백그라운드 웹검색 (2026-10-10)
+
+`start.ps1`은 별도의 **headless Playwright MCP**를 localhost:8932에서 시작한다.
+Node.js/npm과 Google Chrome이 필요하며 확장 프로그램 토큰은 사용하지 않는다.
+사용자의 브라우저 창이나 탭을 조작하지 않는다. Gemma가 질문에서 추출한 공개 검색
+키워드로 Google 검색 결과를 읽고, DB의 검증된 고문헌 인용과 함께 답한다.
+전체 환자 기록이나 의료진 지침은 Google 검색창에 전송하지 않는다.
+확인한 검색 링크는 대화의 참고 자료에 저장한다. 검색 스니펫을 읽는 기능이며
+링크된 모든 페이지 전문을 읽었다고 표시하지 않는다.
+
+현재 실제 headless 검증에서는 Google이 HTTP 429/로봇 확인을 반환했다.
+이 경우 검색 성공이나 출처를 만들어내지 않고, **검색 실패 표시 + DB 기반 답변**을 제공한다.
+CAPTCHA를 자동으로 우회하지 않는다. 기존 Gemini API의 Google Search grounding 경로와
+별개이며, 대화의 기본 웹검색 경로는 이 Playwright 방식이다.
+`HANUI_BROWSER_SEARCH=0`으로 자동 검색을 끌 수 있다.
+직접 실행할 때는 먼저 `python start_browser_search.py`, 이어서 `python server.py --port 8765`를 실행한다.
+`HANUI_BROWSER_MCP_URL`은 loopback HTTP MCP 주소만 허용한다.
+
 Python 3.11 이상. 서버·DB·자료 다운로드에는 Python 표준 라이브러리만 사용한다.
 
 ```powershell

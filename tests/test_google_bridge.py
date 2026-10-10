@@ -14,7 +14,9 @@ from server import App
 
 class GoogleBridgeTests(unittest.TestCase):
     def model(self):
-        return GemmaChat(Path(tempfile.gettempdir()), key="synthetic-key", effort="high")
+        model = GemmaChat(Path(tempfile.gettempdir()), key="synthetic-key", effort="high")
+        model.browser_search_enabled = False
+        return model
 
     def test_request_uses_gemma_high_and_key_only_in_header(self):
         response = {"candidates": [{"content": {"parts": [{"thought": True, "text": "ignored"},

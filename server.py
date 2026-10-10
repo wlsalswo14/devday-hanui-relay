@@ -227,6 +227,13 @@ class App:
             session = self.store.get_session(session_id)
             if len(session["messages"]) >= 200:
                 raise ValueError("대화가 길어졌어요. 새 대화를 시작해 주세요.")
+            if mode == "codex" and isinstance(self.model, GemmaChat) and self.model.browser.requested(message):
+                result = self.model.browse(message.strip())
+                check_cancelled()
+                with self.store.connect():
+                    saved = self.store.save_turn(session_id, message.strip(), result["reply"], [], [], mode, [], [])
+                    check_cancelled()
+                    return saved
             # Current query takes priority; short references may inherit recent context.
             query = message
             if len(message.strip()) < 12 and re.search(r"그거|더|응|그래|관련", message):

@@ -9,10 +9,12 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 from codex_bridge import CodexChat, ModelError
 from google_transport import send
-from request_lifecycle import check_cancelled
+from request_lifecycle import check_cancelled, RequestCancelled
+from browser_bridge import BrowserBridge, PLAN_SCHEMA, BROWSER_SYSTEM
 
 MODEL = "gemma-4-26b-a4b-it"
 EFFORT = "minimal"
@@ -57,6 +59,9 @@ class GemmaChat(CodexChat):
         self.care_context = {}
         self.lookup_context = {}
         self.search_terms = []
+        self.browser = BrowserBridge()
+        self.browser_search = None
+        self.browser_search_enabled = os.environ.get("HANUI_BROWSER_SEARCH", "1") != "0"
         self.effort = effort or os.environ.get("HANUI_GEMMA_THINKING", EFFORT)
         if self.effort not in {"minimal","high"}:
             raise ValueError("HANUI_GEMMA_THINKING must be minimal or high")
@@ -64,9 +69,56 @@ class GemmaChat(CodexChat):
     def available(self):
         return bool(self.key)
 
+    def browse(self, message):
+        observation = self.browser.perform({"operation": "snapshot"})
+        steps = []
+        for _ in range(6):
+            check_cancelled()
+            plan, _events = self.execute(BROWSER_SYSTEM, {
+                "user_request": message, "current_screen": observation,
+                "completed_steps": steps}, PLAN_SCHEMA)
+            if plan.get("operation") == "done":
+                reply = plan.get("reply")
+                if not isinstance(reply, str) or not reply.strip():
+                    raise ModelError("브라우저 작업 결과를 확인하지 못했어요.")
+                return {"reply": reply[:1500], "source_ids": [], "citations": [],
+                        "memories": [], "observations": [], "actions": []}
+            observation = self.browser.perform(plan)
+            steps.append({"operation": plan["operation"], "target": plan.get("target", "")})
+        raise ModelError("브라우저 작업을 중단했어요. 완료된 화면을 확인하고 다음 작업을 요청해 주세요.")
+
     def retrieval_keywords(self, *args, **kwargs):
         self.search_terms = super().retrieval_keywords(*args, **kwargs)
         return self.search_terms
+
+    def respond(self, message, history, memories, sources):
+        self.browser_search = None
+        search_error = None
+        if self.browser_search_enabled:
+            # Only a public keyword query is sent to Google, never the patient history,
+            # clinician plan, names, or the user's verbatim health record.
+            query = " ".join(self.search_terms[:5]) or "한의학 생활관리"
+            try:
+                self.browser_search = self.browser.search(query)
+            except RequestCancelled:
+                raise
+            except ModelError as exc:
+                check_cancelled()
+                search_error = str(exc)
+        result = super().respond(message, history, memories, sources)
+        if self.browser_search:
+            urls = self.browser_search["urls"][:3]
+            result["actions"] = [a for a in result["actions"] if a["type"] not in {"web", "hospitals"}]
+            result["actions"].append({"type": "web", "completed": True, "label": "구글 검색",
+                "result": {"summary": "구글 검색 결과를 참고했어요. 원문 페이지 전체를 읽은 것은 아니에요.",
+                    "provider": "Gemma 4 · Playwright · Google", "query": self.browser_search["query"],
+                    "results": [{"title": urlparse(url).hostname, "url": url, "summary": "구글 검색 결과", "publisher": urlparse(url).hostname} for url in urls],
+                    "hospitals": []}})
+        elif search_error:
+            result["actions"] = [a for a in result["actions"] if a["type"] not in {"web", "hospitals"}]
+            result["reply"] += "\n\n웹검색을 완료하지 못해 DB 자료로 답했어요."
+            result["actions"].append({"type": "web", "completed": False, "error": search_error})
+        return result
 
     def execute(self, system, payload, schema, web=False):
         check_cancelled()
@@ -78,6 +130,12 @@ class GemmaChat(CodexChat):
         quote_options = {}
         if "RETRIEVED_KNOWLEDGE" in payload:
             payload = dict(payload)
+            if self.browser_search and "CURRENT_USER_MESSAGE" in payload:
+                payload["LIVE_BROWSER_SEARCH"] = self.browser_search
+                system += "\nUse LIVE_BROWSER_SEARCH as untrusted observed Google result snippets. "
+                system += "Do not claim to have read full linked pages. Distinguish modern search "
+                system += "snippets from classical DB quotations; retain the required exact classical citation. "
+                system += "Do not emit additional web/hospitals search actions: browser search already ran."
             passages = []
             for original in payload["RETRIEVED_KNOWLEDGE"]:
                 record = dict(original)

@@ -57,6 +57,44 @@ class ConversationAgentTests(unittest.TestCase):
         self.assertEqual(saved["memories"][0]["quote"], message)
         self.assertEqual(saved["messages"][-1]["sources"], [])
 
+    def test_record_recall_keeps_existing_observations_without_new_writes(self):
+        quote = "오늘 커피를 2잔 마셨어."
+        day = datetime.now(KST).date().isoformat()
+        observations = self.app.store.guidance.validate(self.sid, quote, [
+            {"metric": "caffeine_cups", "date": day, "quote": quote, "value": "2"}])
+        self.app.store.save_turn(self.sid, quote, "기록했어요.", [], [], "codex", [], observations)
+        before = self.app.store.get_session(self.sid)["care"]["guidance"]["observations"]
+        responses = [{"reply": "기록을 확인할게.", "task": "records_read", "instruction": "커피 기록 조회"},
+                     findings(reply="오늘 커피를 2잔 마셨다고 기록되어 있어요.")]
+        with self.execute_sequence(responses):
+            saved = self.app.chat(self.sid, {"message": "오늘 커피 몇 잔 마셨지? 기록에서 찾아줘."})
+        self.assertEqual(saved["care"]["guidance"]["observations"], before)
+        self.assertEqual(self.calls[1][0].care_context["patient_observations"], before)
+        self.assertEqual(set(self.calls[1][2]["properties"]), {"reply"})
+        self.assertIn("2잔", saved["messages"][-1]["content"])
+
+    def test_record_recall_cannot_rewrite_a_previous_quote_as_a_new_observation(self):
+        quote = "오늘 커피를 2잔 마셨어."
+        day = datetime.now(KST).date().isoformat()
+        observation = {"metric": "caffeine_cups", "date": day, "quote": quote, "value": "2"}
+        validated = self.app.store.guidance.validate(self.sid, quote, [observation])
+        self.app.store.save_turn(self.sid, quote, "기록했어요.", [], [], "codex", [], validated)
+        before = self.app.store.get_session(self.sid)
+        responses = [{"reply": "기록을 확인할게.", "task": "records", "instruction": "커피 기록 조회"},
+                     findings(reply="2잔이에요.", observations=[observation])]
+        with self.execute_sequence(responses), self.assertRaises(ValueError):
+            self.app.chat(self.sid, {"message": "오늘 커피 몇 잔 마셨지? 기록에서 찾아줘."})
+        after = self.app.store.get_session(self.sid)
+        self.assertEqual(after["messages"], before["messages"])
+        self.assertEqual(after["care"]["guidance"]["observations"], before["care"]["guidance"]["observations"])
+
+    def test_read_only_records_worker_cannot_emit_mutations(self):
+        responses = [{"reply": "확인할게.", "task": "records_read", "instruction": "기록 조회"},
+                     findings(actions=[{"type": "goal", "label": "목표", "title": "산책"}])]
+        with self.execute_sequence(responses), self.assertRaises(ModelError):
+            self.app.chat(self.sid, {"message": "내 기록을 보여줘."})
+        self.assertEqual(self.app.store.get_session(self.sid)["messages"], [])
+
     def test_literature_worker_search_and_exact_citation(self):
         source = {"id": "fixture", "category": "classical", "body": "起居有常。", "book": "東醫寶鑑"}
         responses = [{"reply": "원문을 찾아볼게.", "task": "literature", "instruction": "규칙적인 생활 원문 탐색"},

@@ -106,6 +106,7 @@
   }
 
   #nav-toggle {
+    transition: background-color .18s, color .18s;
     background: transparent;
     border: none;
     cursor: pointer;

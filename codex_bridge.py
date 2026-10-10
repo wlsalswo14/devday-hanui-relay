@@ -459,7 +459,7 @@ class CodexChat:
 
 def compact_task_schema(schema, task):
     """Request only useful worker output; existing validators supply empty defaults."""
-    fields = {"literature": ["reply", "citations"], "web": ["reply"],
+    fields = {"literature": ["reply", "citations"], "web": ["reply"], "records_read": ["reply"],
               "records": ["reply", "memories", "observations", "actions"],
               "calendar": ["reply", "actions"]}.get(task)
     if fields is None:

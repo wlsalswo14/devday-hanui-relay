@@ -348,6 +348,7 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/config":
             return self.respond(200, {"codex_enabled": self.app.codex_enabled,
                 "knowledge_count": self.app.store.knowledge_count(),
+                "classical_db": self.app.store.classical_db.status() if self.app.store.classical_db else {"connected": False},
                 "model": getattr(self.app.model,"model_name",MODEL),
                 "provider": getattr(self.app.model,"provider","test"),
                 "effort": getattr(self.app.model,"effort",EFFORT)})

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import sqlite3
 import threading
@@ -12,6 +13,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 from care import CareStore
 from guidance import GuidanceStore
+from classical_db import ClassicalDB
 
 
 def now() -> str:
@@ -24,6 +26,11 @@ class Store:
         self._connections = threading.local()
         path.parent.mkdir(parents=True, exist_ok=True)
         self.seed_mtime = None
+        config_path = path.parent / "knowledge-db.json"
+        root = os.environ.get("HANUI_KNOWLEDGE_ROOT")
+        if not root and config_path.is_file():
+            root = json.loads(config_path.read_text(encoding="utf-8-sig")).get("root")
+        self.classical_db = ClassicalDB(root) if root else None
         with self.connect() as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS knowledge (id TEXT PRIMARY KEY, record TEXT NOT NULL);
@@ -123,7 +130,7 @@ class Store:
     def knowledge_count(self):
         self.refresh_knowledge()
         with self.connect() as db:
-            return db.execute("SELECT COUNT(*) FROM knowledge").fetchone()[0]
+            return db.execute("SELECT COUNT(*) FROM knowledge").fetchone()[0] + (self.classical_db.count if self.classical_db else 0)
 
     def search(self, query: str, limit: int = 3):
         self.refresh_knowledge()
@@ -154,13 +161,17 @@ class Store:
             raise ValueError("자료 종류를 확인해 주세요.")
         self.refresh_knowledge()
         if query:
-            records = self.search_fulltext([query], 1000)
+            records = self.search_fulltext([query], 1000, include_external=not category)
+            if self.classical_db and category == "classical":
+                records = self.classical_db.search([query], 100) + records
         else:
             with self.connect() as db:
                 records = [json.loads(r[0]) for r in db.execute("SELECT record FROM knowledge ORDER BY id")]
+            if self.classical_db and (not category or category == "classical"):
+                records = self.classical_db.browse() + records
         return [r for r in records if not category or r["category"] == category]
 
-    def search_fulltext(self, keywords, limit=8):
+    def search_fulltext(self, keywords, limit=8, *, include_external=True):
         """Search every stored passage, including original text and Korean readings.
 
         Parameterized substring matching preserves Korean/Chinese phrases without
@@ -188,6 +199,11 @@ class Store:
                 candidates = [r for _, r in ranked if (r["category"] == "classical") == classical]
                 if candidates and not any((r["category"] == "classical") == classical for r in selected):
                     selected[-1] = candidates[0]
+        if self.classical_db and include_external:
+            external = self.classical_db.search(terms, min(limit, 100))
+            if external:
+                modern = [r for r in selected if r["category"] != "classical"]
+                selected = (external[:limit-1] + modern[:1]) if limit >= 2 and modern else external[:limit]
         return selected
 
     def create_session(self):

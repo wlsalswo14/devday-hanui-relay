@@ -184,6 +184,7 @@ class GemmaChat(CodexChat):
             result["actions"].append({"type": "web", "completed": True, "label": f"{provider} 검색",
                 "result": {"summary": f"{provider} 검색 결과를 참고했어요. 원문 페이지 전체를 읽은 것은 아니에요.",
                     "provider": f"Gemma 4 · {provider}", "query": self.browser_search["query"],
+                    "provider_status": self.browser_search.get("provider_status", []),
                     "results": self.browser_search.get("results", []) or [{"title": urlparse(url).hostname, "url": url, "summary": f"{provider} 검색 결과", "publisher": urlparse(url).hostname} for url in urls],
                     "hospitals": []}})
         elif search_error:

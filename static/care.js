@@ -75,7 +75,7 @@ async function loadLibrary(){
 }
 $("library-form").addEventListener("submit",e=>{e.preventDefault();loadLibrary();});
 function renderLookup(container,search){
-    const kind=search.kind,data=search.data;const head=node("div","lookup-heading");head.append(node("span","badge",kind==="hospitals"?"병원":"참고 자료"));container.append(head);
+    const kind=search.kind,data=search.data;const head=node("div","lookup-heading");head.append(node("span","badge",kind==="hospitals"?"병원":"참고 자료"));(data.provider_status||[]).forEach(s=>head.append(node("span","search-note",`${s.provider} · ${s.status==="ok"?`${s.count}건`:s.status==="blocked"?"검색 제한":"연결 실패"}`)));container.append(head);
     if(kind==="hospitals"){
       const cards=node("div","hospital-grid");data.hospitals.forEach(h=>{const card=node("article","tool-card hospital-card");card.append(node("h2","",h.name),node("p","hospital-address",h.address||"주소 확인 필요"));
         const detail=fold("추천 근거",[node("p","hospital-reason",h.reason)],"hospital-details");
@@ -84,7 +84,7 @@ function renderLookup(container,search){
         actions.append(button("예약 준비",()=>openBooking(search.id,h),"primary"));detail.append(button("방문 일정 저장",()=>openEvent({title:h.name+" 방문",location:h.address}),"secondary"));card.append(actions,detail);cards.append(card);});
       if(!data.hospitals.length)empty(cards,"확인 가능한 병원을 찾지 못했어요. 지역이나 조건을 바꿔 검색해 주세요.");container.append(cards);
     }else{
-      const cards=data.results.map(r=>{const card=node("article","tool-card web-card");card.append(node("h2","",r.title),node("p","",r.summary),node("p","search-note",r.publisher),link("원문 확인 ↗",r.url));return card;});container.append(...cards.slice(0,3));if(cards.length>3)container.append(fold(`다른 출처 ${cards.length-3}개`,cards.slice(3)));if(!data.results.length)empty(container,"확인 가능한 검색 결과가 없어요.");
+      const cards=data.results.map(r=>{const card=node("article","tool-card web-card");card.append(node("h2","",r.title),node("p","",r.summary),node("p","search-note",[...(r.search_engines||[]),r.publisher].join(" · ")),link("원문 확인 ↗",r.url));return card;});container.append(...cards.slice(0,3));if(cards.length>3)container.append(fold(`다른 출처 ${cards.length-3}개`,cards.slice(3)));if(!data.results.length)empty(container,"확인 가능한 검색 결과가 없어요.");
     }
 }
 function openBooking(searchId,hospital){selectedHospital={searchId,hospital};$("booking-title").textContent=hospital.name+" 예약 준비";$("booking-start").value=tomorrowTime();$("booking-note").value="";$("booking-dialog").showModal();}

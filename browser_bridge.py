@@ -86,7 +86,7 @@ class BrowserBridge:
                 urls.append(url)
         if not urls:
             raise ModelError("실제 검색 결과 링크를 확인하지 못했어요. 검색했다고 표시하지 않았어요.")
-        return {"query": query[:250], "screen": screen, "urls": urls[:8]}
+        return {"query": query[:250], "provider": "구글", "screen": screen, "urls": urls[:8]}
 
     def perform(self, action):
         """No arbitrary code, selectors, files, credentials, or tab enumeration."""

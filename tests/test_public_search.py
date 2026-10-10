@@ -2,12 +2,60 @@ import json
 import unittest
 from unittest.mock import patch
 
-from public_search import ResultParser, search
+from public_search import ResultParser, search, fetch
 from request_lifecycle import RequestCancelled, RequestManager
 from codex_bridge import ModelError
 
 
 class PublicSearchTests(unittest.TestCase):
+    def setUp(self):
+        self.cooldown = patch("public_search.GOOGLE_RETRY_AFTER", 0)
+        self.cooldown.start()
+        self.addCleanup(self.cooldown.stop)
+
+    def fixture(self, url, title):
+        return {"results": [{"url": url, "title": title, "summary": "실제 요약", "publisher": "example.org"}],
+                "screen": title}
+
+    def test_both_engines_are_called_and_shared_urls_keep_both_attributions(self):
+        with patch("public_search.fetch_naver", return_value=self.fixture("https://example.org/a", "제목")) as naver, \
+             patch("public_search.fetch_google", return_value=self.fixture("https://example.org/a", "제목")) as google:
+            result = fetch("검색어")
+        naver.assert_called_once_with("검색어")
+        google.assert_called_once_with("검색어")
+        self.assertEqual(result["results"][0]["search_engines"], ["네이버", "구글"])
+        self.assertEqual(len(result["results"]), 1)
+        self.assertEqual([o["status"] for o in result["provider_status"]], ["ok", "ok"])
+
+    def test_google_block_does_not_discard_naver_results_or_claim_google_success(self):
+        with patch("public_search.fetch_naver", return_value=self.fixture("https://example.org/a", "제목")), \
+             patch("public_search.fetch_google", side_effect=ModelError("구글이 자동 검색을 제한했어요.")):
+            result = fetch("검색어")
+        self.assertEqual(result["provider"], "네이버")
+        self.assertEqual(result["provider_status"][1]["status"], "blocked")
+        self.assertEqual(result["results"][0]["search_engines"], ["네이버"])
+
+    def test_naver_failure_still_returns_google_results(self):
+        with patch("public_search.fetch_naver", side_effect=OSError()), \
+             patch("public_search.fetch_google", return_value=self.fixture("https://example.org/a", "제목")):
+            result = fetch("검색어")
+        self.assertEqual(result["provider"], "구글")
+        self.assertEqual(result["provider_status"][0]["status"], "failed")
+
+    def test_no_engine_results_is_a_failure(self):
+        with patch("public_search.fetch_naver", side_effect=OSError()), \
+             patch("public_search.fetch_google", side_effect=OSError()):
+            with self.assertRaises(ValueError):
+                fetch("검색어")
+
+    def test_captcha_cooldown_does_not_retry_google_and_is_reported(self):
+        with patch("public_search.fetch_naver", return_value=self.fixture("https://example.org/a", "제목")), \
+             patch("public_search.fetch_google") as google:
+            result = fetch("검색어", google_enabled=False)
+        google.assert_not_called()
+        self.assertEqual(result["provider_status"][0]["status"], "blocked")
+        self.assertFalse(result["provider_status"][0]["attempted"])
+
     def test_parse_merges_observed_title_and_snippet_without_ads_or_navigation(self):
         parser = ResultParser()
         parser.feed('''<a class="fds-anchor-layout" href="https://health.kdca.go.kr/sleep">수면 건강 안내</a>

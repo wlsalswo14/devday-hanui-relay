@@ -351,7 +351,7 @@ class Handler(BaseHTTPRequestHandler):
                 "classical_db": self.app.store.classical_db.status() if self.app.store.classical_db else {"connected": False},
                 "model": getattr(self.app.model,"model_name",MODEL),
                 "provider": getattr(self.app.model,"provider","test"),
-                "web_search_provider": "naver",
+                "web_search_provider": "naver,google", "web_search_providers": ["naver", "google"],
                 "effort": getattr(self.app.model,"effort",EFFORT)})
         if path == "/api/knowledge":
             query = parse_qs(urlparse(self.path).query)

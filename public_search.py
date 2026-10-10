@@ -1,9 +1,12 @@
-"""Read public Naver search results without a visible browser or API credentials."""
+"""Combine observed Naver and Google results, with independent failure reporting."""
 import json
 import re
 import subprocess
 import sys
+import threading
+import time
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
@@ -11,6 +14,9 @@ from urllib.parse import urlencode, urlparse
 from care import safe_url
 from codex_bridge import ModelError
 from request_lifecycle import CURRENT_REQUEST, check_cancelled
+
+GOOGLE_RETRY_AFTER = 0
+GOOGLE_STATUS_LOCK = threading.Lock()
 
 
 class ResultParser(HTMLParser):
@@ -76,7 +82,7 @@ class ResultParser(HTMLParser):
         return [row for _, row in rows[:8]]
 
 
-def fetch(query):
+def fetch_naver(query):
     request = urllib.request.Request("https://search.naver.com/search.naver?" +
         urlencode({"where": "nexearch", "query": query}), headers={"User-Agent": "Hanui/1.0", "Accept": "text/html"})
     with urllib.request.urlopen(request, timeout=15) as response:
@@ -95,14 +101,64 @@ def fetch(query):
             "screen": json.dumps(rows, ensure_ascii=False)}
 
 
+def fetch_google(query):
+    from browser_bridge import BrowserBridge
+    return BrowserBridge().google_search(query)
+
+
+def fetch(query, google_enabled=True):
+    outcomes = []
+    collected = {}
+    screens = []
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        jobs = [("네이버", pool.submit(fetch_naver, query))]
+        if google_enabled:
+            jobs.append(("구글", pool.submit(fetch_google, query)))
+        else:
+            outcomes.append({"provider": "구글", "status": "blocked", "attempted": False,
+                             "error": "구글 자동 검색 제한 · 5분 후 재시도"})
+        for provider, job in jobs:
+            try:
+                result = job.result()
+            except Exception as exc:
+                if provider == "구글" and isinstance(exc, ModelError) and "자동 검색" in str(exc):
+                    status, error = "blocked", "구글 자동 검색 제한"
+                else:
+                    status, error = "failed", f"{provider} 검색 연결 실패"
+                outcomes.append({"provider": provider, "status": status, "attempted": True, "error": error})
+                continue
+            rows = result.get("results") or [{"title": urlparse(url).hostname, "url": url, "summary": "",
+                "publisher": urlparse(url).hostname} for url in result.get("urls", [])]
+            valid = [r for r in rows if safe_url(r.get("url"))]
+            if not valid:
+                outcomes.append({"provider": provider, "status": "failed", "attempted": True, "error": f"{provider} 결과 없음"})
+                continue
+            outcomes.append({"provider": provider, "status": "ok", "attempted": True, "count": len(valid)})
+            screens.append({"provider": provider, "screen": result.get("screen", "")[:15000]})
+            for row in valid:
+                if row["url"] in collected:
+                    collected[row["url"]]["search_engines"].append(provider)
+                else:
+                    collected[row["url"]] = dict(row, search_engines=[provider])
+    if not collected:
+        raise ValueError("No verified search result links from either engine")
+    rows = list(collected.values())[:16]
+    providers = [o["provider"] for o in outcomes if o["status"] == "ok"]
+    return {"query": query, "provider": " · ".join(providers), "provider_status": outcomes,
+            "results": rows, "urls": [r["url"] for r in rows], "screen": json.dumps(screens, ensure_ascii=False)}
+
+
 def search(query):
+    global GOOGLE_RETRY_AFTER
     check_cancelled()
     if not isinstance(query, str) or not query.strip() or len(query) > 250:
         raise ModelError("검색어를 확인해 주세요.")
     process = None
     try:
+        with GOOGLE_STATUS_LOCK:
+            google_enabled = time.monotonic() >= GOOGLE_RETRY_AFTER
         if CURRENT_REQUEST.get() is None:
-            result = fetch(query.strip())
+            result = fetch(query.strip(), google_enabled=google_enabled)
         else:
             process = subprocess.Popen([sys.executable, "-X", "utf8", str(Path(__file__).resolve()), "--worker"],
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding="utf-8",
@@ -111,7 +167,7 @@ def search(query):
             while True:
                 check_cancelled()
                 try:
-                    output, _ = process.communicate(json.dumps({"query": query.strip()}) if first else None, timeout=.1)
+                    output, _ = process.communicate(json.dumps({"query": query.strip(), "google_enabled": google_enabled}) if first else None, timeout=.1)
                     break
                 except subprocess.TimeoutExpired:
                     first = False
@@ -119,6 +175,10 @@ def search(query):
             if process.returncode or "error" in result:
                 raise ValueError("Search unavailable")
         check_cancelled()
+        if any(o.get("provider") == "구글" and o.get("status") == "blocked" and o.get("attempted")
+               for o in result.get("provider_status", [])):
+            with GOOGLE_STATUS_LOCK:
+                GOOGLE_RETRY_AFTER = time.monotonic() + 300
         return result
     except (OSError, ValueError):
         raise ModelError("웹검색 결과를 가져오지 못했어요. 잠시 후 다시 요청해 주세요.") from None
@@ -131,6 +191,7 @@ def search(query):
 
 if __name__ == "__main__":
     try:
-        print(json.dumps(fetch(json.load(sys.stdin)["query"]), ensure_ascii=False))
+        request = json.load(sys.stdin)
+        print(json.dumps(fetch(request["query"], google_enabled=request.get("google_enabled", True)), ensure_ascii=False))
     except Exception:
         print(json.dumps({"error": "Search unavailable"}))

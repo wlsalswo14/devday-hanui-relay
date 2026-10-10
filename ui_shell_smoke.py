@@ -44,6 +44,34 @@ def main():
                 assert first!=second
                 select_conversation(page,first)
                 expect(page.locator(f'.session-item[data-session-id="{first}"]')).to_have_attribute('aria-current','true')
+                for view in ['chat','daily','library','calendar','report']:
+                    expect(page.locator(f'.app-nav [data-view="{view}"] svg[aria-hidden="true"]')).to_have_count(1)
+                shots=ROOT/'.runtime/screenshots';shots.mkdir(parents=True,exist_ok=True)
+                page.screenshot(path=str(shots/'sidebar-icons-desktop.png'))
+                page.locator('#message').fill('보존할 초안')
+                page.once('dialog',lambda dialog:dialog.dismiss())
+                page.locator(f'.session-delete[data-session-id="{second}"]').click()
+                expect(page.locator('.session-item')).to_have_count(2)
+                page.once('dialog',lambda dialog:dialog.accept())
+                page.locator(f'.session-delete[data-session-id="{second}"]').click()
+                expect(page.locator('.session-item')).to_have_count(1)
+                assert page.locator('#session-select').input_value()==first
+                expect(page.locator('#message')).to_have_value('보존할 초안')
+                page.locator('#new-chat').click()
+                expect(page.locator('.session-item')).to_have_count(2)
+                expect(page.locator('#send')).to_be_enabled()
+                third=page.locator('#session-select').input_value()
+                page.once('dialog',lambda dialog:dialog.accept())
+                page.locator(f'.session-delete[data-session-id="{third}"]').click()
+                expect(page.locator(f'.session-item[data-session-id="{first}"]')).to_have_attribute('aria-current','true')
+                expect(page.locator('#message')).to_have_value('보존할 초안')
+                page.once('dialog',lambda dialog:dialog.accept())
+                page.locator(f'.session-delete[data-session-id="{first}"]').click()
+                expect(page.locator(f'.session-item[data-session-id="{first}"]')).to_have_count(0)
+                expect(page.locator('.session-item')).to_have_count(1)
+                expect(page.locator('#send')).to_be_enabled()
+                assert page.locator('#session-select').input_value()!=first
+                expect(page.locator('#message')).to_have_value('')
                 for width in [320,390]:
                     page.set_viewport_size({'width':width,'height':844})
                     expect(page.locator('#app-sidebar')).to_be_hidden()
@@ -77,7 +105,7 @@ def main():
                 assert not errors,errors
                 browser.close()
         finally:server.shutdown();server.server_close()
-    print(json.dumps({'checks':['left-sidebar contains all tools','desktop collapse/reload','recent conversation switching','mobile inert closed drawer','Escape focus restoration','all mobile views','upward settings menu','backdrop close','composer in viewport'],'console_errors':errors}))
+    print(json.dumps({'checks':['five navigation icons','delete confirmation cancel','inactive deletion preserves draft','active deletion switches conversation','last deletion creates new conversation','left-sidebar contains all tools','desktop collapse/reload','recent conversation switching','mobile inert closed drawer','Escape focus restoration','all mobile views','upward settings menu','backdrop close','composer in viewport'],'console_errors':errors}))
 
 
 if __name__=='__main__':main()

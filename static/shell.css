@@ -1,4 +1,11 @@
 @media screen {
+  .nav-icon { width:20px; height:20px; flex:none; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .session-row { display:flex; align-items:center; gap:2px; min-width:0; }
+  #session-list .session-row .session-item { flex:1; min-width:0; width:auto; }
+  .session-delete { display:grid; place-items:center; flex:none; width:34px; height:34px; padding:8px; border:0; border-radius:50%; background:transparent; color:var(--hn-text-muted); cursor:pointer; }
+  .session-delete svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+  .session-delete:hover { background:var(--hn-sb-hover); color:#ad354a; }
+  .session-delete:disabled { opacity:.4; cursor:default; }
   :root {
     --hn-bg: #ffffff;
     --hn-sb-bg: #f0f4f9;

@@ -1,7 +1,11 @@
 @media screen {
   .nav-icon { width:20px; height:20px; flex:none; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
-  .session-row { display:flex; align-items:center; gap:2px; min-width:0; }
+  .session-row { display:flex; align-items:center; gap:2px; min-width:0; border-radius:18px; }
+  .session-row:hover { background:var(--hn-sb-hover); }
+  .session-row:has(.session-item.active) { background:var(--hn-sb-active); }
   #session-list .session-row .session-item { flex:1; min-width:0; width:auto; }
+  #session-list .session-row .session-item:hover,
+  #session-list .session-row .session-item.active { background:transparent; }
   .session-delete { display:grid; place-items:center; flex:none; width:34px; height:34px; padding:8px; border:0; border-radius:50%; background:transparent; color:var(--hn-text-muted); cursor:pointer; }
   .session-delete svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
   .session-delete:hover { background:var(--hn-sb-hover); color:#ad354a; }

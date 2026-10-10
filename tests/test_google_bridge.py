@@ -13,6 +13,24 @@ from server import App
 
 
 class GoogleBridgeTests(unittest.TestCase):
+    def test_shallow_report_output_reaches_original_quote_validation(self):
+        original = "오늘 커피를 2잔 마셨습니다."
+        flat = {"title":"생활 기록", "statements":[{"heading":"식사와 생활",
+                "text":"커피 2잔을 마셨다고 작성했습니다.","source_id":"current-draft","quote":original}]}
+        with tempfile.TemporaryDirectory() as directory:
+            app = App(Path(directory), model=self.model())
+            sid = app.store.create_session()["id"]
+            with patch.object(GemmaChat,"execute",return_value=(flat,[])) as execute:
+                draft = app.report_documents.draft(sid,{"current":{"body":original}},app.model)
+            schema = execute.call_args.args[2]
+            self.assertEqual(schema["properties"]["statements"]["items"]["properties"]["source_id"]["enum"],["current-draft"])
+            self.assertEqual(draft["references"][0]["quote"],original)
+            self.assertIn("[1]",draft["body"])
+            self.assertEqual(app.report_documents.get(sid)["revision"],0)
+            flat["statements"][0]["quote"] = "오늘 커피를 5잔 마셨습니다."
+            with patch.object(GemmaChat,"execute",return_value=(flat,[])), self.assertRaises(ModelError):
+                app.report_documents.draft(sid,{"current":{"body":original}},app.model)
+
     def test_malformed_structured_output_retries_once_with_the_same_request(self):
         malformed = {"candidates": [{"content": {"parts": [{"text": '{"reply":'}]}}]}
         valid = {"candidates": [{"content": {"parts": [{"text": '{"reply":"ok"}'}]}}]}

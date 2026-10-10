@@ -193,6 +193,19 @@ class ConversationAgentTests(unittest.TestCase):
                 self.app.chat(self.sid, {"message": "원문 찾아줘"})
         self.assertEqual(self.app.store.get_session(self.sid)["messages"], [])
 
+    def test_literature_task_keeps_db_retrieval_separate_from_live_web_search(self):
+        self.main.browser_search_enabled = True
+        source = {"id":"fixture","category":"classical","body":"起居有常。","book":"東醫寶鑑"}
+        responses = [{"reply":"원문을 찾을게요.","task":"literature","instruction":"DB 원문 탐색"},
+                     {"keywords":["起居"],"search_needed":True,"search_query":"unrequested web search"},
+                     {"reply":"원문을 찾았어요.","citations":[{"source_id":"fixture","quote":"起居有常","reading":"생활에 규칙이 있다"}]}]
+        with self.execute_sequence(responses), patch.object(self.app.store,"search_fulltext",return_value=[source]), \
+             patch("browser_bridge.BrowserBridge.search",side_effect=AssertionError("Unexpected web search")):
+            saved = self.app.chat(self.sid,{"message":"고문헌 DB 원문만 찾아줘. 웹검색은 하지 마."})
+        self.assertEqual(set(self.calls[1][2]["properties"]),{"keywords"})
+        self.assertFalse(self.calls[1][0].browser_search_enabled)
+        self.assertTrue(saved["messages"][-1]["sources"])
+
     def test_records_worker_cannot_change_calendar(self):
         responses = [{"reply": "정리할게.", "task": "records", "instruction": "생활 기록"}, findings(actions=[{
             "type": "event", "label": "일정", "query": "", "title": "산책", "start": "2026-10-11T15:00:00+09:00", "note": "", "operation": "create"}])]

@@ -168,6 +168,10 @@ def run_conversation(main, store, message, session):
         result.update(source_ids=[], citations=[], memories=[], observations=[])
     else:
         if task in {"literature", "web"}:
+            if task == "literature":
+                # The main agent already chose DB research. Do not add a second
+                # web-search decision or a browser request to this task.
+                worker.browser_search_enabled = False
             if task == "web" and not worker.browser_search_enabled:
                 raise ModelError("웹검색 연결이 비활성화되어 있어요.")
             keywords = worker.retrieval_keywords(message, session["messages"], care["guidance"]["plans"], require_web=task == "web", task_brief=instruction)

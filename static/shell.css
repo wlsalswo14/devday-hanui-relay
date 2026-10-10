@@ -616,6 +616,6 @@
 }
 
 @media print { .reminder-tray { display:none !important; } }
-.system-instructions-link { flex-shrink:0; justify-content:flex-start !important; color:var(--hn-text-muted); }
+#system-instructions-open.system-instructions-link { flex-shrink:0; justify-content:flex-start !important; color:var(--hn-text-muted); transition:background-color .18s,color .18s; }
 #system-instructions-dialog { width:min(640px,calc(100vw - 32px)); }
 #system-instructions-text { width:100%; min-height:240px; max-height:55dvh; resize:vertical; box-sizing:border-box; font:inherit; line-height:1.65; }

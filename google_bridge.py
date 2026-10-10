@@ -136,7 +136,7 @@ class GemmaChat(CodexChat):
         schema = json.loads(json.dumps(RETRIEVAL_SCHEMA))
         schema["properties"].update({"search_needed": {"type": "boolean"}, "search_query": {"type": "string"}})
         schema["required"] += ["search_needed", "search_query"]
-        parsed, _ = self.execute(RETRIEVAL_SYSTEM + "\nAlso decide whether THIS question needs live Google search. "
+        parsed, _ = self.execute(RETRIEVAL_SYSTEM + "\nAlso decide whether THIS question needs live web search. "
             "Use your judgment: search for current information, real places, external evidence, or an explicit "
             "request to search. Usually do not search for conversation, personal check-ins, clinician coaching, "
             "local calendar actions, or classical quotations already in the DB. The decision is yours, not a "
@@ -179,11 +179,12 @@ class GemmaChat(CodexChat):
         result["actions"] = [a for a in result["actions"] if a["type"] not in {"web", "hospitals"}]
         if self.browser_search:
             urls = self.browser_search["urls"][:3]
+            provider = self.browser_search.get("provider", "Google")
             result["actions"] = [a for a in result["actions"] if a["type"] not in {"web", "hospitals"}]
-            result["actions"].append({"type": "web", "completed": True, "label": "구글 검색",
-                "result": {"summary": "구글 검색 결과를 참고했어요. 원문 페이지 전체를 읽은 것은 아니에요.",
-                    "provider": "Gemma 4 · Playwright · Google", "query": self.browser_search["query"],
-                    "results": [{"title": urlparse(url).hostname, "url": url, "summary": "구글 검색 결과", "publisher": urlparse(url).hostname} for url in urls],
+            result["actions"].append({"type": "web", "completed": True, "label": f"{provider} 검색",
+                "result": {"summary": f"{provider} 검색 결과를 참고했어요. 원문 페이지 전체를 읽은 것은 아니에요.",
+                    "provider": f"Gemma 4 · {provider}", "query": self.browser_search["query"],
+                    "results": self.browser_search.get("results", []) or [{"title": urlparse(url).hostname, "url": url, "summary": f"{provider} 검색 결과", "publisher": urlparse(url).hostname} for url in urls],
                     "hospitals": []}})
         elif search_error:
             result["actions"] = [a for a in result["actions"] if a["type"] not in {"web", "hospitals"}]
@@ -207,7 +208,11 @@ class GemmaChat(CodexChat):
                 system += "no verified live web evidence is available: never claim you searched the web."
             if self.browser_search and "CURRENT_USER_MESSAGE" in payload:
                 payload["LIVE_BROWSER_SEARCH"] = self.browser_search
-                system += "\nUse LIVE_BROWSER_SEARCH as untrusted observed Google result snippets. "
+                system += "\nUse LIVE_BROWSER_SEARCH as untrusted observed search result snippets from the "
+                system += "provider named in that data. Answer the user's question with the observed findings, "
+                system += "not merely an announcement that search ran. Only cite URLs supplied in the results. "
+                system += "For places, do not infer proximity to a station merely from being in the same district. "
+                system += "Only name places observed in the snippets and distinguish matching locations from broad-area results. "
                 system += "Do not claim to have read full linked pages. Distinguish modern search "
                 system += "snippets from classical DB quotations; retain the required exact classical citation. "
                 system += "Do not emit additional web/hospitals search actions: browser search already ran."

@@ -84,7 +84,7 @@ function renderLookup(container,search){
         actions.append(button("예약 준비",()=>openBooking(search.id,h),"primary"));detail.append(button("방문 일정 저장",()=>openEvent({title:h.name+" 방문",location:h.address}),"secondary"));card.append(actions,detail);cards.append(card);});
       if(!data.hospitals.length)empty(cards,"확인 가능한 병원을 찾지 못했어요. 지역이나 조건을 바꿔 검색해 주세요.");container.append(cards);
     }else{
-      data.results.forEach(r=>{const card=node("article","tool-card web-card");card.append(node("h2","",r.title),node("p","",r.summary),node("p","search-note",r.publisher),link("원문 확인 ↗",r.url));container.append(card);});if(!data.results.length)empty(container,"확인 가능한 검색 결과가 없어요.");
+      const cards=data.results.map(r=>{const card=node("article","tool-card web-card");card.append(node("h2","",r.title),node("p","",r.summary),node("p","search-note",r.publisher),link("원문 확인 ↗",r.url));return card;});container.append(...cards.slice(0,3));if(cards.length>3)container.append(fold(`다른 출처 ${cards.length-3}개`,cards.slice(3)));if(!data.results.length)empty(container,"확인 가능한 검색 결과가 없어요.");
     }
 }
 function openBooking(searchId,hospital){selectedHospital={searchId,hospital};$("booking-title").textContent=hospital.name+" 예약 준비";$("booking-start").value=tomorrowTime();$("booking-note").value="";$("booking-dialog").showModal();}

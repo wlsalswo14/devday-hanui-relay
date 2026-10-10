@@ -87,13 +87,13 @@ class BrowserTests(unittest.TestCase):
             browser.current_url = "https://www.google.com/search?q=sleep"
             return screen
         with patch.object(browser, "perform", side_effect=observe):
-            result = browser.search("sleep")
+            result = browser.google_search("sleep")
             self.assertEqual(result["urls"], ["https://example.org/sleep"])
         def blocked(*args):
             browser.current_url = "https://www.google.com/sorry/index"
             return "reCAPTCHA"
         with patch.object(browser, "perform", side_effect=blocked):
-            with self.assertRaises(ModelError): browser.search("sleep")
+            with self.assertRaises(ModelError): browser.google_search("sleep")
 
     def test_search_failure_keeps_cited_db_reply_without_fake_search_success(self):
         model = GemmaChat(Path(tempfile.gettempdir()), key="fixture")

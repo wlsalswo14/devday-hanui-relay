@@ -68,6 +68,10 @@ class BrowserBridge:
         return re.sub(r"AIza[\w-]{30,}|PLAYWRIGHT_MCP_EXTENSION_TOKEN=[^\s]+", "[redacted]", content)
 
     def search(self, query):
+        from public_search import search
+        return search(query)
+
+    def google_search(self, query):
         screen = self.perform({"operation": "navigate", "value": "https://www.google.com/search?q=" + quote(query[:250])})
         # Read a settled result snapshot, not only the initial navigation event.
         screen = self.perform({"operation": "snapshot"})

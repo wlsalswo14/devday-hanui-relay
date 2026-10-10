@@ -68,7 +68,7 @@ def main():
                 page.on("request", lambda r: map_requests.append(r.url) if any(host in r.url for host in
                     ("dapi.kakao.com", "map.kakao.com", "map.naver.com", "/api/maps", "/map.png", "/route")) else None)
                 page.goto(f"http://127.0.0.1:{server.server_port}", wait_until="networkidle")
-                page.get_by_text("오늘, 몸과 마음은 어때요?", exact=True).wait_for()
+                page.locator(".welcome-title").wait_for()
                 def unexpected_dialog(dialog):
                     problems.append("Unexpected prompt: " + dialog.message)
                     dialog.dismiss()
@@ -142,7 +142,7 @@ def main():
                 page.locator("#event-title").fill("합성 별도 방문 일정")
                 page.locator("#event-note").fill("개인 방문 메모는 앱에 저장")
                 page.get_by_role("button", name="일정 저장", exact=True).click()
-                page.get_by_role("button", name="일정·예약", exact=True).click()
+                page.locator('.app-nav [data-view="calendar"]').click()
                 expect(page.locator("#events-list .record-row")).to_have_count(2)
                 assert page.locator("a[href*='calendar.google.com']").count() == 0
                 page.locator("#events-list .record-row").filter(has_text="합성 별도 방문 일정").get_by_role("button", name="캘린더에서 보기").click()
@@ -166,7 +166,7 @@ def main():
                 page.screenshot(path=str(output / "desktop-chat-sources.png"), full_page=True)
                 page.remove_listener("dialog", unexpected_dialog)
                 page.reload(wait_until="networkidle")
-                page.get_by_role("button", name="일정·예약", exact=True).click()
+                page.locator('.app-nav [data-view="calendar"]').click()
                 expect(page.locator("#events-list .record-row")).to_have_count(2)
                 page.once("dialog", lambda d: d.accept())
                 page.get_by_role("button", name="취소 기록", exact=True).click()
@@ -186,6 +186,7 @@ def main():
                 data = json.loads(Path(export.value.path()).read_text(encoding="utf-8"))
                 assert data["care"]["checkins"][0]["sleep"] == 6.5
                 page.once("dialog", lambda d: d.accept())
+                page.locator("#chat-menu > summary").click()
                 page.locator("#reset").click()
                 expect(page.locator("#checkin-history .record-row")).to_have_count(0)
                 expect(page.locator("#events-list .record-row")).to_have_count(0)
@@ -213,6 +214,7 @@ def main():
                 second_id = page.locator("#session-select").input_value()
                 assert first_id != second_id
                 expect(page.locator("#message")).to_have_value("")
+                page.locator("#chat-menu > summary").click()
                 page.locator("#rename-chat").click()
                 page.locator("#session-title").fill("식사 이야기")
                 page.get_by_role("button", name="이름 저장", exact=True).click()
@@ -253,10 +255,12 @@ def main():
                 expect(page.locator("#context-sidebar")).to_be_hidden()
                 assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
                 page.once("dialog", lambda d: d.accept())
+                page.locator("#chat-menu > summary").click()
                 page.locator("#reset").click()
                 expect(page.locator("#session-select")).to_have_value(first_id)
                 expect(page.locator(".message.user")).to_contain_text("5시간")
                 page.once("dialog", lambda d: d.accept())
+                page.locator("#chat-menu > summary").click()
                 page.locator("#reset").click()
                 expect(page.locator(".message")).to_have_count(0)
                 assert not problems, problems

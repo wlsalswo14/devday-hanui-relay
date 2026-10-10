@@ -34,11 +34,14 @@ async function api(path, options={}) {
   }finally{if(request&&activeAI===request)activeAI=null;}
 }
 function showError(message){$("error").textContent=message||"";$("error").hidden=!message;}
-function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("session-select").disabled=value&&!activeAI;$("new-chat").disabled=value&&!activeAI;$("rename-chat").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);if(!value){clearInterval(loadingClock);loadingClock=null;$("loading-message").textContent="답변을 준비하고 있어요…";}else if(!loadingClock){const started=Date.now();loadingClock=setInterval(()=>{$("loading-message").textContent=`원문을 확인하고 답변을 준비 중이에요 · ${Math.floor((Date.now()-started)/1000)}초`;},1000);}}
-function syncSidebar(){const chat=!document.querySelector(".conversation").hidden;$("context-sidebar").hidden=!chat||!state.sidebarOpen;$("toggle-sidebar").hidden=!chat;$("toggle-sidebar").textContent="기록·자료";$("toggle-sidebar").setAttribute("aria-expanded",String(chat&&state.sidebarOpen));document.querySelector(".workspace").classList.toggle("sidebar-collapsed",!state.sidebarOpen);$("sidebar-backdrop").hidden=!chat||!state.sidebarOpen;}
+function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("session-select").disabled=value&&!activeAI;$("new-chat").disabled=value&&!activeAI;$("rename-chat").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);if(!value){clearInterval(loadingClock);loadingClock=null;$("loading-message").textContent="생각 중…";}else if(!loadingClock){const started=Date.now();loadingClock=setInterval(()=>{$("loading-message").textContent=`생각 중 · ${Math.floor((Date.now()-started)/1000)}초`;},1000);}}
+function syncSidebar(){const chat=!document.querySelector(".conversation").hidden;$("context-sidebar").hidden=!chat||!state.sidebarOpen;$("toggle-sidebar").hidden=!chat;$("toggle-sidebar").setAttribute("aria-expanded",String(chat&&state.sidebarOpen));document.querySelector(".workspace").classList.toggle("sidebar-collapsed",!state.sidebarOpen);$("sidebar-backdrop").hidden=!chat||!state.sidebarOpen;}
 function toggleSidebar(open){if(!open&&$("context-sidebar").contains(document.activeElement))$("toggle-sidebar").focus();state.sidebarOpen=open;try{localStorage.setItem("hanui_sidebar_v2",open?"open":"closed");}catch{}syncSidebar();}
 $("toggle-sidebar").addEventListener("click",()=>toggleSidebar(!state.sidebarOpen));
 $("close-sidebar").addEventListener("click",()=>toggleSidebar(false));
+document.addEventListener("click",event=>{if(!$("chat-menu").contains(event.target))$("chat-menu").open=false;});
+document.addEventListener("keydown",event=>{if(event.key==="Escape")$("chat-menu").open=false;});
+$("chat-menu").addEventListener("click",event=>{if(event.target.closest("button"))$("chat-menu").open=false;});
 $("sidebar-backdrop").addEventListener("click",()=>toggleSidebar(false));
 document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!document.querySelector("dialog[open]"))toggleSidebar(false);});
 async function refreshSessions(){state.sessions=(await api("/api/sessions")).sessions;const select=$("session-select");select.replaceChildren();state.sessions.forEach(s=>{const option=node("option","",s.title);option.value=s.id;select.append(option);});select.value=state.session?.id||"";}
@@ -57,16 +60,13 @@ function openSource(record){
   $("source-location").hidden=!record.location;
   const readings=(record.citations||[]).filter(c=>c.reading);
   $("source-reading").textContent=readings.length?readings.map(c=>c.reading).join("\n\n"):record.summary||"";$("source-reading-section").hidden=!readings.length&&!record.summary;
-  $("source-reading-section").querySelector("h3").textContent=readings.length?(readings.every(c=>["luna","openai","google"].includes(c.reading_origin))?"한국어 해석 · 에이전트":"한국어 해석 · 예시"):"자료 요약";
+  $("source-reading-section").querySelector("h3").textContent=readings.length?(readings.every(c=>["luna","openai","google"].includes(c.reading_origin))?"해석":"예시 해석"):"요약";
   const original=$("source-dialog").querySelector(".source-original");if(original){original.open=false;original.querySelector("summary").textContent=record.category==="classical"?"한자 원문·출처":"자료 원문·출처";}
   const link=$("source-link");let valid=false;try{const url=new URL(record.source_url);valid=["https:","http:"].includes(url.protocol);if(valid)link.href=url.href;}catch{}
   link.hidden=!valid;$("source-dialog").showModal();
 }
 function welcome(){
-  const section=node("div","welcome");const art=node("div","welcome-art");art.append(node("span","","h."));section.append(art,node("h2","","오늘, 몸과 마음은 어때요?"));
-  section.append(node("p","","편하게 이야기해 주세요."));
-  const suggestions=node("div","suggestions");
-  ["요즘 5시간 정도 자고 낮에 피곤해","미병이 뭔지 알려줘","강남역 근처 한의원 찾아줘"].forEach(text=>{const b=node("button","suggestion",text);b.type="button";b.addEventListener("click",()=>{$("message").value=text;updateCount();$("chat-form").requestSubmit();});suggestions.append(b);});section.append(suggestions);return section;
+  const section=node("div","welcome");section.append(node("h2","welcome-title","오늘은 어때요?"));return section;
 }
 function render(){
   const messages=$("messages");messages.replaceChildren();
@@ -74,27 +74,27 @@ function render(){
   state.session.messages.forEach(message=>{
     const article=node("article",`message ${message.role}`);article.id="message-"+message.id;const label=node("div","message-label");
     if(message.role==="assistant")label.append(node("span","mini-mark","h."));
-    label.append(node("span","",message.role==="user"?"나":message.mode==="codex"?"Hanui":"샘플"));article.append(label,node("div","bubble",message.content));
-    if(message.sources?.length){message.sources.forEach(record=>{
+    if(message.role==="assistant"&&message.mode!=="codex")label.append(node("span","","샘플"));if(message.role==="assistant")article.append(label);article.append(node("div","bubble",message.content));
+    if(message.sources?.length){const sourceDetails=fold(`근거 ${message.sources.length}`,[],"source-preview");const sourceContent=node("div","source-content");message.sources.forEach(record=>{
       if(record.citations?.length){const passage=node("section","quoted-passage");passage.append(node("span","source-kind",shortText(sourceName(record),55)));
-        record.citations.forEach(c=>{if(c.reading){passage.append(node("p","reading-label",["luna","openai","google"].includes(c.reading_origin)?"에이전트 해석":"예시 해석"),node("p","citation-reading",c.reading));}
-          const original=fold(record.category==="classical"?"한자 원문·출처":"인용·출처",[node("blockquote","",c.quote),node("p","quote-location",`${record.location||record.title} · 본문 ${c.offset_start+1}–${c.offset_end}자`)],"source-original");
-          const detail=node("button","citation","출처 보기 ↗");detail.type="button";detail.addEventListener("click",()=>openSource(record));original.append(detail);passage.append(original);
-        });article.append(passage);
-      }else{const detail=node("button","citation",shortText(sourceName(record)));detail.type="button";detail.title=record.title;detail.addEventListener("click",()=>openSource(record));article.append(detail);}
-    });}
+        record.citations.forEach(c=>{if(c.reading){passage.append(node("p","reading-label",["luna","openai","google"].includes(c.reading_origin)?"해석":"예시 해석"),node("p","citation-reading",c.reading));}
+          const original=fold("원문",[node("blockquote","",c.quote),node("p","quote-location",`${record.location||record.title} · 본문 ${c.offset_start+1}–${c.offset_end}자`)],"source-original");
+          const detail=node("button","citation","출처 ↗");detail.type="button";detail.addEventListener("click",()=>openSource(record));original.append(detail);passage.append(original);
+        });sourceContent.append(passage);
+      }else{const detail=node("button","citation",shortText(sourceName(record)));detail.type="button";detail.title=record.title;detail.addEventListener("click",()=>openSource(record));sourceContent.append(detail);}
+    });sourceDetails.append(sourceContent);article.append(sourceDetails);}
     if(message.actions?.length){const actions=node("div","message-actions");message.actions.forEach(action=>{if(action.type==="hospitals"||action.type==="web"){if(action.completed){const found=action.result?{id:action.search_id,kind:action.type,data:action.result}:state.session.care.searches.find(s=>s.id===action.search_id||(!action.search_id&&s.kind===action.type));if(found)renderLookup(actions,found);}if(action.error)actions.append(node("p","search-note",action.error));return;}const button=node("button","secondary action-button",action.label||"다음 단계 보기");button.type="button";button.addEventListener("click",()=>openAction(action));actions.append(button);});article.append(actions);}
-    if(message.patient_evidence?.length&&typeof patientReference==="function")article.append(patientReference(message.patient_evidence,"기록 근거"));
+    if(message.patient_evidence?.length&&typeof patientReference==="function")article.append(patientReference(message.patient_evidence,"기록"));
     messages.append(article);
   });
   const memories=$("memories");memories.replaceChildren();$("memory-count").textContent=String(state.session.memories.length);
-  if(!state.session.memories.length)memories.append(node("div","empty-note","수면, 식사, 활동처럼\n나의 일상을 이야기해 보세요."));
+  if(!state.session.memories.length)memories.append(node("div","empty-note","기록 없음"));
   const memoryCards=state.session.memories.slice().reverse().map(memory=>{const card=node("article","memory-card");card.append(node("div","memory-category",categories[memory.category]||"생활기록"),node("p","",shortText(memory.summary,75)));return card;});
   memories.append(...memoryCards.slice(0,3));if(memoryCards.length>3)memories.append(fold(`이전 기록 ${memoryCards.length-3}개`,memoryCards.slice(3)));
   const sources=$("sources");sources.replaceChildren();
   const latest=[...state.session.messages].reverse().find(m=>m.role==="assistant");const records=latest?.sources||[];
   $("knowledge-count").textContent=String(records.length);
-  if(!records.length)sources.append(node("div","empty-note","질문에 맞는 자료를 찾으면\n출처를 여기에 모아둘게요."));
+  if(!records.length)sources.append(node("div","empty-note","자료 없음"));
   records.forEach(record=>{const button=node("button","source-card");button.type="button";button.title=record.title;button.append(node("strong","",shortText(sourceName(record),45)));button.addEventListener("click",()=>openSource(record));sources.append(button);});
   messages.scrollTop=messages.scrollHeight;
   if(typeof renderCare==="function")renderCare();
@@ -105,7 +105,7 @@ async function send(override=null){
   if(state.busy||!state.session)return false;const message=(typeof override==="string"?override:$("message").value).trim();if(!message)return false;
   showError("");busy(true);
   const generation=uiGeneration;
-  const pending=node("article","message user pending-message");pending.append(node("div","message-label","나 · 전송 중"),node("div","bubble",message));$("messages").append(pending);$("messages").scrollTop=$("messages").scrollHeight;
+  const pending=node("article","message user pending-message");pending.append(node("div","bubble",message));$("messages").append(pending);$("messages").scrollTop=$("messages").scrollHeight;
   try{state.session=await api(`/api/sessions/${state.session.id}/chat`,{method:"POST",body:JSON.stringify({message,mode:state.mode})});if(override===null){$("message").value="";updateCount();}render();await refreshSessions();return true;}
   catch(error){if(generation===uiGeneration&&error.name!=="AbortError")showError(error.message);return false;}finally{pending.remove();if(generation===uiGeneration){busy(false);if(override===null)$("message").focus();}}
 }
@@ -113,7 +113,7 @@ $("stop-response").addEventListener("click",cancelActiveRequest);
 $("chat-form").addEventListener("submit",event=>{event.preventDefault();send();});
 $("message").addEventListener("input",updateCount);
 $("message").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.shiftKey&&!event.isComposing&&event.keyCode!==229){event.preventDefault();$("chat-form").requestSubmit();}});
-$("mode").addEventListener("change",()=>{state.mode=$("mode").value;setModeDescription();});
+$("mode").addEventListener("change",()=>{state.mode=$("mode").value;setModeDescription();$("chat-menu").open=false;});
 $("reset").addEventListener("click",async()=>{
   if(state.busy||!state.session||!window.confirm("이 대화와 연결된 생활기록을 모두 삭제할까요?"))return;
   busy(true);showError("");try{const deleted=state.session.id;await api(`/api/sessions/${deleted}`,{method:"DELETE"});delete state.drafts[deleted];await refreshSessions();state.session=null;useSession(state.sessions.length?await api(`/api/sessions/${state.sessions[0].id}`):await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();}catch(error){showError(error.message);}finally{busy(false);}

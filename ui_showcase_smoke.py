@@ -65,7 +65,7 @@ def main():
                 latest=page.locator(".message.assistant").last
                 expect(latest).to_contain_text("합성 예시")
                 expect(latest.locator(".citation-reading")).to_have_count(2)
-                expect(latest.locator(".reading-label").first).to_have_text("에이전트 해석")
+                expect(latest.locator(".reading-label").first).to_have_text("해석")
                 assert not latest.locator(".source-original").first.evaluate("e=>e.open")
                 expect(latest.locator(".quoted-passage")).to_have_count(2)
                 latest.locator(".bubble").scroll_into_view_if_needed()

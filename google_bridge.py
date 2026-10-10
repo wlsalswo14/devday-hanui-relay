@@ -109,7 +109,9 @@ class GemmaChat(CodexChat):
             system += "\nSource bodies are exact contiguous excerpts of the full DB originals. Cite only exact "
             system += "text in these excerpts. If the question asks for a classical original or DB passage, "
             system += "answer from these records; do not request web search unless the user also asks for "
-            system += "current web evidence or hospital information. Keep the answer concise, under 600 Korean characters."
+            system += "current web evidence or hospital information. By default reply in 1-2 short Korean sentences, "
+            system += "under 120 characters. No greeting, boilerplate, source metadata or repeated translation. "
+            system += "Ask at most one necessary followup. Give more detail only when requested or necessary for safety."
         prompt = system + "\nReturn ONLY JSON matching this schema:\n" + json.dumps(schema)
         prompt += "\nDATA:\n" + json.dumps(payload, ensure_ascii=False)
         body = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],

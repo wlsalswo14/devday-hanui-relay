@@ -54,6 +54,11 @@ def main():
                 page.locator("#message").fill("수면 관련 고문헌 원문 찾아줘")
                 page.locator("#message").press("Enter")
                 expect(page.locator(".quoted-passage")).to_have_count(1)
+                assert not page.locator(".source-preview").first.evaluate("e=>e.open")
+                expect(page.locator(".citation-reading")).to_be_hidden()
+                page.locator(".source-preview > summary").first.click()
+                expect(page.locator(".citation-reading")).to_be_visible()
+                page.locator(".source-preview > summary").first.click()
                 assert page.locator("#knowledge-count").inner_text() == "1"
                 page.locator("#message").fill("합성 테스트 지역 한의원 찾아줘")
                 page.locator("#message").press("Enter")
@@ -95,6 +100,8 @@ def main():
                     report=page.evaluate(TEXT_CONTRAST)
                     assert not report["failures"], (width,"sidebar",report["failures"])
                     page.locator("#close-sidebar").click()
+                    if not page.locator(".source-preview").first.evaluate("e=>e.open"):
+                        page.locator(".source-preview > summary").first.click()
                     if not page.locator(".quoted-passage .source-original").first.evaluate("e=>e.open"):
                         page.locator(".quoted-passage .source-original > summary").first.click()
                     page.locator(".quoted-passage .citation").first.click()

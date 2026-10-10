@@ -26,8 +26,9 @@ def main():
         page.on("pageerror", lambda error: problems.append(str(error)))
         page.on("console", lambda message: problems.append(message.text) if message.type == "error" else None)
         page.goto("http://127.0.0.1:8765", wait_until="networkidle")
-        page.get_by_text("오늘, 몸과 마음은 어때요?", exact=True).wait_for()
+        page.locator(".welcome-title").wait_for()
         page.screenshot(path=str(output / "desktop-welcome.png"), full_page=True)
+        page.locator("#chat-menu > summary").click()
         page.locator("#mode").select_option("demo")
         page.get_by_role("button", name="요즘 5시간 정도 자고 낮에 피곤해", exact=True).click()
         expect(page.locator(".message")).to_have_count(2)
@@ -45,6 +46,7 @@ def main():
         page.reload(wait_until="networkidle")
         expect(page.locator(".message")).to_have_count(4)
         assert page.locator(".memory-card").count() >= 1
+        page.locator("#chat-menu > summary").click()
         page.locator("#mode").select_option("demo")
         page.locator("#message").fill("감초 자료를 찾아줘")
         page.locator("#message").press("Enter")
@@ -64,6 +66,7 @@ def main():
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         # Entire session deletion removes both transcript and lifestyle records.
         page.once("dialog", lambda dialog: dialog.accept())
+        page.locator("#chat-menu > summary").click()
         page.locator("#reset").click()
         expect(page.locator("#session-select")).not_to_have_value(session["id"])
         assert context.request.get(f'http://127.0.0.1:8765/api/sessions/{session["id"]}').status == 404

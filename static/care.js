@@ -19,7 +19,7 @@ function showView(view){
   if(view==="report"&&typeof loadReport==="function")loadReport();
   syncSidebar();
 }
-document.querySelectorAll(".app-nav button").forEach(b=>b.addEventListener("click",()=>showView(b.dataset.view)));
+document.querySelectorAll(".app-nav button").forEach(b=>b.addEventListener("click",()=>{showView(b.dataset.view);closeMobileNav();}));
 document.querySelectorAll(".close-dialog").forEach(b=>b.addEventListener("click",()=>b.closest("dialog").close()));
 function openAction(action){
   if(state.busy)return;

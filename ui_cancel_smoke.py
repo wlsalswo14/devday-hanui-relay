@@ -6,6 +6,7 @@ import time
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from ui_helpers import open_menu, select_conversation
 from playwright.sync_api import sync_playwright, expect
 from server import App, Handler
 from tests.test_cancellation import SlowModel, SlowProvider
@@ -41,7 +42,7 @@ def main():
                     if action=="stop":page.locator("#stop-response").click()
                     elif action=="view":page.locator('[data-view="daily"]').click()
                     elif action=="new-chat":page.locator("#new-chat").click()
-                    elif action=="switch":page.locator("#session-select").select_option(other)
+                    elif action=="switch":select_conversation(page,other)
                     elif action=="hidden":page.evaluate("Object.defineProperty(document,'hidden',{configurable:true,value:true});document.dispatchEvent(new Event('visibilitychange'))")
                     elif action=="reload":page.reload(wait_until="networkidle")
                     else:page.close()

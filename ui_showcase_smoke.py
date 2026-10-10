@@ -7,6 +7,7 @@ import threading
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from ui_helpers import open_menu, select_conversation
 from playwright.sync_api import sync_playwright, expect
 from seed_showcase import build_showcase
 from server import App,Handler,ROOT
@@ -70,6 +71,7 @@ def main():
                 expect(latest.locator(".quoted-passage")).to_have_count(2)
                 latest.locator(".bubble").scroll_into_view_if_needed()
                 page.screenshot(path=str(output/"showcase-chat.png"),full_page=True)
+                open_menu(page)
                 page.locator("#toggle-sidebar").click()
                 page.locator("#sources .source-card").first.click()
                 expect(page.locator("#source-dialog")).to_be_visible()
@@ -77,9 +79,11 @@ def main():
                 expect(page.locator("#source-reading")).not_to_be_empty()
                 assert not page.locator("#source-dialog .source-original").evaluate("e=>e.open")
                 page.keyboard.press("Escape")
+                open_menu(page)
                 page.locator('.app-nav [data-view="daily"]').click()
                 expect(page.locator(".clinician-goal")).to_have_count(4)
                 page.screenshot(path=str(output/"showcase-daily.png"),full_page=True)
+                open_menu(page)
                 page.locator('.app-nav [data-view="report"]').click()
                 expect(page.locator("#print-report")).to_be_enabled()
                 expect(page.locator("#report-sheet")).to_contain_text("75%")
@@ -92,6 +96,7 @@ def main():
                 page.locator('.report-instruction .patient-reference').first.click()
                 expect(page.locator(".patient-evidence-card")).to_have_count(8)
                 page.keyboard.press("Escape")
+                open_menu(page)
                 page.locator('.app-nav [data-view="calendar"]').click()
                 expect(page.locator("#calendar-grid .calendar-pill")).not_to_have_count(0)
                 expect(page.locator("#bookings-list")).to_contain_text("예약 준비")
@@ -102,6 +107,7 @@ def main():
                 for width in [320,390]:
                     page.set_viewport_size({"width":width,"height":844})
                     for view in ["chat","daily","calendar","report"]:
+                        open_menu(page)
                         page.locator(f'.app-nav [data-view="{view}"]').click()
                         if view=="chat" and page.locator("#context-sidebar").is_visible():page.locator("#close-sidebar").click()
                         if view=="report":
@@ -112,7 +118,7 @@ def main():
                         assert not page.evaluate(TEXT_CONTRAST)["failures"],(width,view)
                     if width==390:page.screenshot(path=str(output/"showcase-mobile-report.png"),full_page=True)
                 page.set_viewport_size({"width":1440,"height":1100})
-                page.locator("#session-select").select_option(showcase["secondary_session_id"])
+                select_conversation(page,showcase["secondary_session_id"])
                 expect(page.locator(".report-instruction")).to_have_count(2)
                 expect(page.locator("#report-sheet")).to_contain_text("상충 1일")
                 expect(page.locator("#report-sheet")).to_contain_text("기록 없음 14일")

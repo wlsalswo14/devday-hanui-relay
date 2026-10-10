@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from ui_helpers import open_menu, select_conversation
 from playwright.sync_api import sync_playwright, expect
 from care import KST
 from server import App, Handler, ROOT, demo_response
@@ -76,6 +77,7 @@ def main():
                 page.locator("#message").fill("미병이 뭐야?")
                 page.locator("#message").press("Enter")
                 expect(page.locator(".message")).to_have_count(2)
+                open_menu(page)
                 page.locator('.app-nav [data-view="daily"]').click()
                 page.locator("#checkin-editor > summary").click()
                 page.locator("#checkin-sleep").fill("6.5")
@@ -92,6 +94,7 @@ def main():
                 page.locator("#goals-list input").check()
                 expect(page.locator("#goals-list")).to_contain_text("누적 1일 실천")
                 page.screenshot(path=str(output / "desktop-daily.png"), full_page=True)
+                open_menu(page)
                 page.locator('.app-nav [data-view="library"]').click()
                 expect(page.locator("#library-results .library-record")).to_have_count(app.store.knowledge_count())
                 page.locator("#library-query").fill("인삼")
@@ -100,6 +103,7 @@ def main():
                 page.locator("#library-results .library-record").first.get_by_role("button").click()
                 expect(page.locator("#source-dialog")).to_be_visible()
                 page.locator("#close-source").click()
+                open_menu(page)
                 page.get_by_role("button", name="대화", exact=True).click()
                 page.locator("#message").fill("합성 지역 한의원 찾아줘")
                 page.locator("#message").press("Enter")
@@ -122,6 +126,7 @@ def main():
                 assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
                 page.screenshot(path=str(output / "mobile-hospital-cards.png"), full_page=True)
                 page.set_viewport_size({"width": 1440, "height": 1024})
+                open_menu(page)
                 page.locator("#toggle-sidebar").click()
                 page.get_by_role("button", name="예약 준비", exact=True).click()
                 page.locator("#booking-note").fill("합성 방문 메모")
@@ -134,6 +139,7 @@ def main():
                 page.get_by_role("button", name="확정 기록·일정 생성", exact=True).click()
                 expect(page.locator("#events-list .record-row")).to_have_count(1)
                 expect(page.locator("#bookings-list")).to_contain_text("예약 확정")
+                open_menu(page)
                 page.get_by_role("button", name="대화", exact=True).click()
                 page.locator(".hospital-details > summary").click()
                 page.get_by_role("button", name="방문 일정 저장", exact=True).click()
@@ -142,6 +148,7 @@ def main():
                 page.locator("#event-title").fill("합성 별도 방문 일정")
                 page.locator("#event-note").fill("개인 방문 메모는 앱에 저장")
                 page.get_by_role("button", name="일정 저장", exact=True).click()
+                open_menu(page)
                 page.locator('.app-nav [data-view="calendar"]').click()
                 expect(page.locator("#events-list .record-row")).to_have_count(2)
                 assert page.locator("a[href*='calendar.google.com']").count() == 0
@@ -155,6 +162,7 @@ def main():
                 assert "합성 별도 방문 일정" in calendar
                 assert "LOCATION:합성 주소" in calendar
                 page.screenshot(path=str(output / "desktop-calendar.png"), full_page=True)
+                open_menu(page)
                 page.get_by_role("button", name="대화", exact=True).click()
                 page.locator("#message").fill("공식 자료 찾아줘")
                 page.locator("#message").press("Enter")
@@ -166,6 +174,7 @@ def main():
                 page.screenshot(path=str(output / "desktop-chat-sources.png"), full_page=True)
                 page.remove_listener("dialog", unexpected_dialog)
                 page.reload(wait_until="networkidle")
+                open_menu(page)
                 page.locator('.app-nav [data-view="calendar"]').click()
                 expect(page.locator("#events-list .record-row")).to_have_count(2)
                 page.once("dialog", lambda d: d.accept())
@@ -174,11 +183,13 @@ def main():
                 expect(page.locator("#bookings-list")).to_contain_text("취소 기록")
                 page.set_viewport_size({"width": 390, "height": 844})
                 for view in ["daily", "library", "calendar", "chat"]:
+                    open_menu(page)
                     page.locator(f'.app-nav [data-view="{view}"]').click()
                     assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), view
                 # The mobile sidebar is an overlay; dismiss it before navigation.
                 if page.locator("#context-sidebar").is_visible():
                     page.get_by_role("button", name="사이드바 닫기", exact=True).click()
+                open_menu(page)
                 page.locator('.app-nav [data-view="daily"]').click()
                 page.screenshot(path=str(output / "mobile-daily.png"), full_page=True)
                 with page.expect_download() as export:
@@ -186,6 +197,7 @@ def main():
                 data = json.loads(Path(export.value.path()).read_text(encoding="utf-8"))
                 assert data["care"]["checkins"][0]["sleep"] == 6.5
                 page.once("dialog", lambda d: d.accept())
+                open_menu(page)
                 page.locator("#chat-menu > summary").click()
                 page.locator("#reset").click()
                 expect(page.locator("#checkin-history .record-row")).to_have_count(0)
@@ -193,18 +205,21 @@ def main():
                 expect(page.locator("#bookings-list .record-row")).to_have_count(0)
                 # Multiple conversations keep records and unsent drafts separate.
                 page.set_viewport_size({"width": 1440, "height": 1024})
+                open_menu(page)
                 page.get_by_role("button", name="대화", exact=True).click()
                 first_id = page.locator("#session-select").input_value()
                 page.locator("#message").fill("요즘 5시간 자고 있어")
                 page.locator("#message").press("Enter")
                 expect(page.locator(".message")).to_have_count(2)
                 page.locator("#message").fill("첫 대화의 작성 중 메시지")
+                open_menu(page)
                 page.locator('.app-nav [data-view="daily"]').click()
                 if not page.locator("#checkin-editor").evaluate("e=>e.open"):
                     page.locator("#checkin-editor > summary").click()
                 page.locator("#checkin-sleep").fill("6")
                 page.get_by_role("button", name="체크인 저장", exact=True).click()
                 expect(page.locator("#checkin-history .record-row")).to_have_count(1)
+                open_menu(page)
                 page.locator("#new-chat").click()
                 expect(page.locator(".message")).to_have_count(0)
                 assert not map_requests, map_requests
@@ -214,6 +229,7 @@ def main():
                 second_id = page.locator("#session-select").input_value()
                 assert first_id != second_id
                 expect(page.locator("#message")).to_have_value("")
+                open_menu(page)
                 page.locator("#chat-menu > summary").click()
                 page.locator("#rename-chat").click()
                 page.locator("#session-title").fill("식사 이야기")
@@ -223,31 +239,37 @@ def main():
                 page.locator("#message").press("Enter")
                 expect(page.locator(".message")).to_have_count(2)
                 page.locator("#message").fill("두 번째 대화의 초안")
-                page.locator("#session-select").select_option(first_id)
+                select_conversation(page,first_id)
                 expect(page.locator("#message")).to_have_value("첫 대화의 작성 중 메시지")
                 expect(page.locator(".message.user")).to_contain_text("5시간")
                 expect(page.locator(".memory-card")).to_contain_text("5시간")
+                open_menu(page)
                 page.locator('.app-nav [data-view="daily"]').click()
                 expect(page.locator("#checkin-history .record-row")).to_have_count(1)
-                page.locator("#session-select").select_option(second_id)
+                select_conversation(page,second_id)
                 expect(page.locator("#message")).to_have_value("두 번째 대화의 초안")
                 expect(page.locator("#checkin-history .record-row")).to_have_count(0)
+                open_menu(page)
                 page.get_by_role("button", name="대화", exact=True).click()
                 expect(page.locator(".message.user")).to_contain_text("아침")
                 if not page.locator("#context-sidebar").is_visible():
+                    open_menu(page)
                     page.locator("#toggle-sidebar").click()
                 page.reload(wait_until="networkidle")
                 expect(page.locator("#session-select")).to_have_value(second_id)
                 expect(page.locator("#session-select option:checked")).to_contain_text("식사 이야기")
+                open_menu(page)
                 page.locator("#toggle-sidebar").click()
                 expect(page.locator("#context-sidebar")).to_be_hidden()
                 page.reload(wait_until="networkidle")
                 expect(page.locator("#context-sidebar")).to_be_hidden()
+                open_menu(page)
                 page.locator("#toggle-sidebar").click()
                 expect(page.locator("#context-sidebar")).to_be_visible()
                 page.screenshot(path=str(output / "desktop-conversations.png"), full_page=True)
                 if page.locator("#context-sidebar").is_visible():page.locator("#close-sidebar").click()
                 page.set_viewport_size({"width": 390, "height": 844})
+                open_menu(page)
                 page.locator("#toggle-sidebar").click()
                 expect(page.locator("#context-sidebar")).to_be_visible()
                 page.screenshot(path=str(output / "mobile-sidebar.png"), full_page=True)
@@ -255,11 +277,13 @@ def main():
                 expect(page.locator("#context-sidebar")).to_be_hidden()
                 assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
                 page.once("dialog", lambda d: d.accept())
+                open_menu(page)
                 page.locator("#chat-menu > summary").click()
                 page.locator("#reset").click()
                 expect(page.locator("#session-select")).to_have_value(first_id)
                 expect(page.locator(".message.user")).to_contain_text("5시간")
                 page.once("dialog", lambda d: d.accept())
+                open_menu(page)
                 page.locator("#chat-menu > summary").click()
                 page.locator("#reset").click()
                 expect(page.locator(".message")).to_have_count(0)

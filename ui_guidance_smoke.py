@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from ui_helpers import open_menu, select_conversation
 from playwright.sync_api import sync_playwright, expect
 from care import KST
 from codex_bridge import validate_result
@@ -44,6 +45,7 @@ def main():
                 base=f"http://127.0.0.1:{server.server_port}";page.goto(base,wait_until="networkidle")
                 expect(page.locator("#send")).to_be_enabled()
                 sid=page.locator("#session-select").input_value()
+                open_menu(page)
                 page.locator('.app-nav [data-view="daily"]').click()
                 page.locator("#new-guidance").click()
                 original="취침 23시 전, 찬 음식 줄이기, 커피 1잔 이하, 점심 후 산책 10분"
@@ -56,6 +58,7 @@ def main():
                 expect(page.locator(".message.assistant")).to_have_count(1)
                 expect(page.locator(".message.user")).to_have_count(0)
                 expect(page.locator(".message.assistant")).to_contain_text("어젯밤에는 몇 시")
+                open_menu(page)
                 page.locator('.app-nav [data-view="daily"]').click()
                 expect(page.locator(".clinician-goal")).to_have_count(4)
                 page.locator(".clinician-goal .record-details > summary").first.click()
@@ -78,6 +81,7 @@ def main():
                 expect(page.locator("#guidance-count")).to_have_text("4")
                 expect(page.locator(".message.assistant").last).to_contain_text("지침과 차이")
                 if page.locator("#context-sidebar").is_visible():page.locator("#close-sidebar").click()
+                open_menu(page)
                 page.locator('.app-nav [data-view="report"]').click()
                 expect(page.locator(".report-instruction")).to_have_count(4)
                 expect(page.locator("#report-sheet")).to_contain_text("75%")
@@ -104,6 +108,7 @@ def main():
                 expect(other.locator("#session-select")).to_have_value(sid)
                 expect(other.locator(".evidence-highlight")).to_have_count(1)
                 other.close()
+                open_menu(page)
                 page.locator('.app-nav [data-view="report"]').click()
                 expect(page.locator("#print-report")).to_be_enabled()
                 page.screenshot(path=str(output/"desktop-visit-report.png"),full_page=True)
@@ -122,18 +127,23 @@ def main():
                     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
                     page.keyboard.press("Escape")
                 page.reload(wait_until="networkidle")
+                open_menu(page)
                 page.locator('.app-nav [data-view="report"]').click()
                 expect(page.locator("#report-sheet")).to_contain_text("75%")
                 # Ending a goal preserves its historical instruction and citations.
+                open_menu(page)
                 page.locator('.app-nav [data-view="daily"]').click()
                 page.once("dialog",lambda d:d.accept())
                 page.locator(".clinician-goal .record-details > summary").first.click()
                 page.locator(".clinician-goal").first.get_by_role("button",name="지침 종료",exact=True).click()
                 expect(page.locator(".clinician-goal")).to_have_count(3)
+                open_menu(page)
                 page.locator('.app-nav [data-view="report"]').click()
                 expect(page.locator(".report-instruction")).to_have_count(4)
                 # New conversation has no clinician instructions or patient evidence.
+                open_menu(page)
                 page.locator("#new-chat").click()
+                open_menu(page)
                 page.locator('.app-nav [data-view="report"]').click()
                 expect(page.locator(".report-instruction")).to_have_count(0)
                 expect(page.locator(".report-coverage")).to_contain_text("기록 없음 14일")

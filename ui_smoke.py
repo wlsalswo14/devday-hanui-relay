@@ -3,6 +3,7 @@ import json
 import sys
 from pathlib import Path
 
+from ui_helpers import open_menu, select_conversation
 from playwright.sync_api import sync_playwright, expect
 
 ROOT = Path(__file__).resolve().parent
@@ -28,6 +29,7 @@ def main():
         page.goto("http://127.0.0.1:8765", wait_until="networkidle")
         page.locator(".welcome-title").wait_for()
         page.screenshot(path=str(output / "desktop-welcome.png"), full_page=True)
+        open_menu(page)
         page.locator("#chat-menu > summary").click()
         page.locator("#mode").select_option("demo")
         page.get_by_role("button", name="요즘 5시간 정도 자고 낮에 피곤해", exact=True).click()
@@ -46,6 +48,7 @@ def main():
         page.reload(wait_until="networkidle")
         expect(page.locator(".message")).to_have_count(4)
         assert page.locator(".memory-card").count() >= 1
+        open_menu(page)
         page.locator("#chat-menu > summary").click()
         page.locator("#mode").select_option("demo")
         page.locator("#message").fill("감초 자료를 찾아줘")
@@ -66,6 +69,7 @@ def main():
         assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth")
         # Entire session deletion removes both transcript and lifestyle records.
         page.once("dialog", lambda dialog: dialog.accept())
+        open_menu(page)
         page.locator("#chat-menu > summary").click()
         page.locator("#reset").click()
         expect(page.locator("#session-select")).not_to_have_value(session["id"])

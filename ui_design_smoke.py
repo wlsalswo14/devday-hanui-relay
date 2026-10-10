@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
+from ui_helpers import open_menu, select_conversation
 from playwright.sync_api import sync_playwright, expect
 from care import KST
 from server import App, Handler, ROOT
@@ -79,6 +80,7 @@ def main():
                 for width in [320, 360, 390, 768, 1024, 1440]:
                     page.set_viewport_size({"width":width,"height":844 if width<701 else 1024})
                     for view in ["chat", "daily", "library", "calendar"]:
+                        open_menu(page)
                         page.locator(f'.app-nav [data-view="{view}"]').click()
                         if view=="library":expect(page.locator(".library-record")).to_have_count(99)
                         if view=="calendar":
@@ -92,9 +94,11 @@ def main():
                         results.append({"width":width,"view":view,"text_checked":report["checked"]})
                         if width in [390,1440]:
                             page.screenshot(path=str(output/f"redesign-{width}-{view}.png"),full_page=view!="library")
+                    open_menu(page)
                     page.locator('.app-nav [data-view="chat"]').click()
                     assert page.locator(".bubble").first.evaluate("e=>parseFloat(getComputedStyle(e).fontSize)")>=16
                     assert page.locator(".quoted-passage blockquote").first.evaluate("e=>parseFloat(getComputedStyle(e).fontSize)")>=16
+                    open_menu(page)
                     page.locator("#toggle-sidebar").click()
                     expect(page.locator("#context-sidebar")).to_be_visible()
                     report=page.evaluate(TEXT_CONTRAST)
@@ -115,6 +119,7 @@ def main():
                     page.keyboard.press("Escape")
                     expect(page.locator("#source-dialog")).to_be_hidden()
                 # Explicit filter for the core classical corpus, with no model calls.
+                open_menu(page)
                 page.locator('.app-nav [data-view="library"]').click()
                 page.locator("#library-category").select_option("classical")
                 page.locator("#library-form button").click()

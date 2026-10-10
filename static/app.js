@@ -11,6 +11,38 @@ function revealEditor(id){const editor=$(id);if(editor)editor.open=true;}
 function savedId(){try{return localStorage.getItem("hanui_session");}catch{return null;}}
 function saveId(id){try{localStorage.setItem("hanui_session",id);}catch{/* In-memory session remains usable. */}}
 let activeAI=null, uiGeneration=0, loadingClock=null;
+const mobileNav=matchMedia("(max-width:700px)");
+let desktopNavCollapsed=false;
+try{desktopNavCollapsed=localStorage.getItem("hanui_nav_collapsed")==="true";}catch{}
+function toggleNav(open){
+  if(mobileNav.matches){
+    if(!open&&$("app-sidebar").contains(document.activeElement))$("mobile-nav-toggle").focus();
+    document.body.classList.toggle("nav-open",open);$("nav-backdrop").hidden=!open;
+    $("app-sidebar").inert=!open;
+    $("mobile-nav-toggle").setAttribute("aria-expanded",String(open));
+    if(open)$("nav-toggle").focus();
+  }else{
+    if(!open&&$("app-sidebar").contains(document.activeElement))$("nav-toggle").focus();
+    desktopNavCollapsed=!open;document.body.classList.toggle("nav-collapsed",!open);
+    $("app-sidebar").inert=false;$("nav-backdrop").hidden=true;
+    try{localStorage.setItem("hanui_nav_collapsed",String(!open));}catch{}
+  }
+  $("nav-toggle").setAttribute("aria-expanded",String(open));
+  $("nav-toggle").setAttribute("aria-label",open?"메뉴 접기":"메뉴 열기");
+}
+function closeMobileNav(){if(mobileNav.matches)toggleNav(false);}
+$("nav-toggle").addEventListener("click",()=>toggleNav(mobileNav.matches?false:desktopNavCollapsed));
+$("mobile-nav-toggle").addEventListener("click",()=>toggleNav(!document.body.classList.contains("nav-open")));
+$("nav-backdrop").addEventListener("click",()=>toggleNav(false));
+document.addEventListener("keydown",event=>{
+  if(event.key!=="Tab"||!mobileNav.matches||!document.body.classList.contains("nav-open")||document.querySelector("dialog[open]"))return;
+  const items=[...$("app-sidebar").querySelectorAll('button,select,summary,a[href]')].filter(e=>!e.disabled&&(e.tabIndex>=0||e.tagName==="SUMMARY")&&e.checkVisibility());
+  const first=items[0],last=items.at(-1);if(!first)return;
+  if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+  else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+});
+mobileNav.addEventListener("change",()=>{document.body.classList.remove("nav-open");toggleNav(mobileNav.matches?false:!desktopNavCollapsed);});
+toggleNav(mobileNav.matches?false:!desktopNavCollapsed);
 function cancelActiveRequest(){
   if(!activeAI)return;
   const request=activeAI;activeAI=null;uiGeneration++;request.controller.abort();
@@ -35,19 +67,20 @@ async function api(path, options={}) {
 }
 function showError(message){$("error").textContent=message||"";$("error").hidden=!message;}
 function busy(value){state.busy=value;$("send").disabled=value;$("reset").disabled=value;$("mode").disabled=value;$("session-select").disabled=value&&!activeAI;$("new-chat").disabled=value&&!activeAI;$("rename-chat").disabled=value;$("loading").hidden=!value;$("chat-form").setAttribute("aria-busy",String(value));document.querySelectorAll(".suggestion, .tool-view button, dialog form button, .action-button").forEach(b=>b.disabled=value);if(!value){clearInterval(loadingClock);loadingClock=null;$("loading-message").textContent="생각 중…";}else if(!loadingClock){const started=Date.now();loadingClock=setInterval(()=>{$("loading-message").textContent=`생각 중 · ${Math.floor((Date.now()-started)/1000)}초`;},1000);}}
-function syncSidebar(){const chat=!document.querySelector(".conversation").hidden;$("context-sidebar").hidden=!chat||!state.sidebarOpen;$("toggle-sidebar").hidden=!chat;$("toggle-sidebar").setAttribute("aria-expanded",String(chat&&state.sidebarOpen));document.querySelector(".workspace").classList.toggle("sidebar-collapsed",!state.sidebarOpen);$("sidebar-backdrop").hidden=!chat||!state.sidebarOpen;}
+function syncSidebar(){$("context-sidebar").hidden=!state.sidebarOpen;$("toggle-sidebar").setAttribute("aria-expanded",String(state.sidebarOpen));document.querySelector(".workspace").classList.toggle("sidebar-collapsed",!state.sidebarOpen);}
 function toggleSidebar(open){if(!open&&$("context-sidebar").contains(document.activeElement))$("toggle-sidebar").focus();state.sidebarOpen=open;try{localStorage.setItem("hanui_sidebar_v2",open?"open":"closed");}catch{}syncSidebar();}
 $("toggle-sidebar").addEventListener("click",()=>toggleSidebar(!state.sidebarOpen));
-$("close-sidebar").addEventListener("click",()=>toggleSidebar(false));
+$("close-sidebar").addEventListener("click",()=>{toggleSidebar(false);closeMobileNav();});
 document.addEventListener("click",event=>{if(!$("chat-menu").contains(event.target))$("chat-menu").open=false;});
 document.addEventListener("keydown",event=>{if(event.key==="Escape")$("chat-menu").open=false;});
 $("chat-menu").addEventListener("click",event=>{if(event.target.closest("button"))$("chat-menu").open=false;});
-$("sidebar-backdrop").addEventListener("click",()=>toggleSidebar(false));
-document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!document.querySelector("dialog[open]"))toggleSidebar(false);});
-async function refreshSessions(){state.sessions=(await api("/api/sessions")).sessions;const select=$("session-select");select.replaceChildren();state.sessions.forEach(s=>{const option=node("option","",s.title);option.value=s.id;select.append(option);});select.value=state.session?.id||"";}
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!document.querySelector("dialog[open]")){toggleSidebar(false);closeMobileNav();}});
+function renderSessionList(){const list=$("session-list");list.replaceChildren();state.sessions.forEach(s=>{const b=node("button","session-item"+(s.id===state.session?.id?" active":""),shortText(s.title,32));b.type="button";b.dataset.sessionId=s.id;b.title=s.title;if(s.id===state.session?.id)b.setAttribute("aria-current","true");b.addEventListener("click",()=>selectSession(s.id));list.append(b);});}
+async function refreshSessions(){state.sessions=(await api("/api/sessions")).sessions;const select=$("session-select");select.replaceChildren();state.sessions.forEach(s=>{const option=node("option","",s.title);option.value=s.id;select.append(option);});select.value=state.session?.id||"";renderSessionList();}
 function useSession(session){if(state.session)state.drafts[state.session.id]=$("message").value;state.session=session;saveId(session.id);$("message").value=state.drafts[session.id]||"";updateCount();$("checkin-date").value="";$("goal-title").value="";selectedHospital=null;confirmingBooking=null;editingEvent=null;document.querySelectorAll("dialog[open]").forEach(d=>d.close());showError("");render();$("session-select").value=session.id;}
-$("session-select").addEventListener("change",async()=>{cancelActiveRequest();if(state.busy)return;const id=$("session-select").value;busy(true);try{useSession(await api(`/api/sessions/${id}`));}catch(e){showError(e.message);$("session-select").value=state.session.id;}finally{busy(false);}});
-$("new-chat").addEventListener("click",async()=>{cancelActiveRequest();if(state.busy)return;busy(true);try{useSession(await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();showView("chat");}catch(e){showError(e.message);}finally{busy(false);$("message").focus();}});
+async function selectSession(id){cancelActiveRequest();if(state.busy)return;busy(true);try{useSession(await api(`/api/sessions/${id}`));renderSessionList();showView("chat");closeMobileNav();}catch(e){showError(e.message);$("session-select").value=state.session.id;}finally{busy(false);}}
+$("session-select").addEventListener("change",()=>selectSession($("session-select").value));
+$("new-chat").addEventListener("click",async()=>{cancelActiveRequest();if(state.busy)return;busy(true);try{useSession(await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();showView("chat");closeMobileNav();}catch(e){showError(e.message);}finally{busy(false);$("message").focus();}});
 $("rename-chat").addEventListener("click",()=>{if(state.busy||!state.session)return;$("session-title").value=state.session.title;$("rename-dialog").showModal();$("session-title").focus();});
 $("rename-form").addEventListener("submit",async e=>{e.preventDefault();if(state.busy)return;busy(true);try{state.session=await api(`/api/sessions/${state.session.id}/title`,{method:"POST",body:JSON.stringify({title:$("session-title").value})});await refreshSessions();$("rename-dialog").close();}catch(e){showError(e.message);}finally{busy(false);}});
 function setModeDescription(){

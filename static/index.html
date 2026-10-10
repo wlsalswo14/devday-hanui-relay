@@ -7,6 +7,7 @@
   <title>Hanui — 나를 알아가는 대화</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/shell.css">
   <link rel="stylesheet" href="/report-print.css" media="print">
   <script src="/app.js" defer></script>
   <script src="/care.js" defer></script>
@@ -14,14 +15,27 @@
   <script src="/guidance.js" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/" aria-label="Hanui 홈"><span class="mark">h.</span><span>hanui</span></a>
-    <details id="chat-menu" class="chat-menu"><summary aria-label="대화 설정">⋯</summary><div class="chat-menu-items"><label class="mode"><span class="sr-only">대화 방식</span><select id="mode"><option value="codex">에이전트</option><option value="demo">샘플</option></select></label><button id="rename-chat" class="quiet" type="button">이름 변경</button><button id="reset" class="quiet">대화 삭제</button></div></details>
-  </header>
+  <aside id="app-sidebar" class="app-sidebar" aria-label="메뉴">
+    <div class="sidebar-top"><button id="nav-toggle" class="quiet" type="button" aria-label="메뉴 접기" aria-controls="app-sidebar" aria-expanded="true">☰</button><span class="sidebar-brand">hanui</span></div>
+    <button id="new-chat" class="secondary" type="button">＋ 새 대화</button>
+
   <nav class="app-nav" aria-label="주요 기능">
     <button data-view="chat" class="active" aria-current="page">대화</button><button data-view="daily">기록</button><button data-view="library">자료</button><button data-view="calendar">일정</button><button data-view="report">리포트</button>
   </nav>
-  <div class="conversation-bar"><select id="session-select" aria-label="대화 선택"></select><button id="new-chat" class="quiet" type="button" aria-label="새 대화" title="새 대화">＋</button><button id="toggle-sidebar" class="quiet" type="button" aria-label="기록·자료" title="기록·자료" aria-controls="context-sidebar" aria-expanded="false">☷</button></div>
+    <section class="sidebar-conversations" aria-label="대화 목록"><h2>대화</h2><div id="session-list"></div><select id="session-select" class="sr-only" aria-label="대화 선택" tabindex="-1"></select></section>
+    <button id="toggle-sidebar" class="quiet" type="button" aria-controls="context-sidebar" aria-expanded="false">기록·자료</button>
+
+    <aside id="context-sidebar" class="context" aria-label="생활기록과 근거 자료" hidden>
+      <div class="sidebar-heading"><strong>생활기록·자료</strong><button id="close-sidebar" class="quiet" type="button" aria-label="사이드바 닫기">닫기 ×</button></div>
+      <section id="guidance-sidebar" class="context-section" hidden><div class="section-label"><span>한의사 지침</span><span id="guidance-count" class="count"></span></div><div id="guidance-sidebar-items"></div><button id="sidebar-report" type="button" class="secondary">내원 리포트</button></section>
+      <section class="context-section"><div class="section-label"><span>생활 기록</span><span id="memory-count" class="count">0</span></div><div id="memories"></div></section>
+      <section class="context-section library"><div class="section-label"><span>참고 자료</span><span id="knowledge-count" class="count">0</span></div><div id="sources"></div></section>
+    </aside>
+    <details id="chat-menu" class="chat-menu"><summary aria-label="대화 설정">⋯</summary><div class="chat-menu-items"><label class="mode"><span class="sr-only">대화 방식</span><select id="mode"><option value="codex">에이전트</option><option value="demo">샘플</option></select></label><button id="rename-chat" class="quiet" type="button">이름 변경</button><button id="reset" class="quiet">대화 삭제</button></div></details>
+  </aside>
+  <header class="topbar"><button id="mobile-nav-toggle" class="quiet" type="button" aria-label="메뉴 열기" aria-controls="app-sidebar" aria-expanded="false">☰</button><a class="brand" href="/" aria-label="Hanui 홈">hanui</a></header>
+  <button id="nav-backdrop" type="button" aria-label="메뉴 닫기" hidden></button>
+
   <main class="workspace sidebar-collapsed">
     <section class="conversation" aria-label="한의학 정보 대화">
       <div class="sr-only" id="mode-description" role="status"></div>
@@ -31,13 +45,7 @@
       <form id="chat-form" class="composer"><label for="message" class="sr-only">메시지</label><textarea id="message" rows="1" maxlength="2000" placeholder="메시지" required></textarea><button id="send" class="send" type="submit" aria-label="메시지 보내기">↑</button></form>
       <span id="counter" class="sr-only"></span>
     </section>
-    <button id="sidebar-backdrop" class="sidebar-backdrop" aria-label="사이드바 배경 닫기" hidden></button>
-    <aside id="context-sidebar" class="context" aria-label="생활기록과 근거 자료" hidden>
-      <div class="sidebar-heading"><strong>생활기록·자료</strong><button id="close-sidebar" class="quiet" type="button" aria-label="사이드바 닫기">닫기 ×</button></div>
-      <section id="guidance-sidebar" class="context-section" hidden><div class="section-label"><span>한의사 지침</span><span id="guidance-count" class="count"></span></div><div id="guidance-sidebar-items"></div><button id="sidebar-report" type="button" class="secondary">내원 리포트</button></section>
-      <section class="context-section"><div class="section-label"><span>생활 기록</span><span id="memory-count" class="count">0</span></div><div id="memories"></div></section>
-      <section class="context-section library"><div class="section-label"><span>참고 자료</span><span id="knowledge-count" class="count">0</span></div><div id="sources"></div></section>
-    </aside>
+
     <section id="daily-view" class="tool-view" hidden aria-labelledby="daily-title">
       <div class="view-head"><div><h1 id="daily-title">기록</h1></div><button id="export-records" class="secondary">기록 내보내기</button></div>
       <div id="daily-summary" class="stat-grid"></div>

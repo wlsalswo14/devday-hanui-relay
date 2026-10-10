@@ -47,27 +47,26 @@ class ConversationAgentTests(unittest.TestCase):
     def test_records_use_separate_worker_no_db_and_exact_user_quote(self):
         message = "점심 후 10분 걸었어"
         responses = [{"reply": "", "task": "records", "instruction": "산책 기록 정리"},
-            findings(memories=[{"category": "activity", "summary": "점심 후 산책 10분", "quote": message}]),
-            {"reply": "점심 후 산책 10분을 이야기해 줬네."}]
+            findings(reply="점심 후 산책 10분을 이야기해 줬네.", memories=[{"category": "activity", "summary": "점심 후 산책 10분", "quote": message}])]
         responses[0]["reply"] = "기록을 정리할게."
         with self.execute_sequence(responses), patch.object(self.app.store, "search_fulltext", side_effect=AssertionError("Unexpected DB search")):
             saved = self.app.chat(self.sid, {"message": message})
-        self.assertEqual(len(self.calls), 3)
+        self.assertEqual(len(self.calls), 2)
         self.assertIsNot(self.calls[1][0], self.main)
-        self.assertIs(self.calls[2][0], self.main)
+        self.assertEqual(saved["messages"][-1]["content"], "점심 후 산책 10분을 이야기해 줬네.")
         self.assertEqual(saved["memories"][0]["quote"], message)
         self.assertEqual(saved["messages"][-1]["sources"], [])
 
     def test_literature_worker_search_and_exact_citation(self):
         source = {"id": "fixture", "category": "classical", "body": "起居有常。", "book": "東醫寶鑑"}
         responses = [{"reply": "원문을 찾아볼게.", "task": "literature", "instruction": "규칙적인 생활 원문 탐색"},
-            {"keywords": ["起居"]}, findings(source_ids=["fixture"], citations=[{"source_id": "fixture", "quote": "起居有常", "reading": "생활에 규칙이 있다"}]),
-            {"reply": "동의보감의 규칙적인 생활에 관한 원문을 찾았어."}]
+            {"keywords": ["起居"]}, findings(source_ids=["fixture"], citations=[{"source_id": "fixture", "quote": "起居有常", "reading": "생활에 규칙이 있다"}])]
         with self.execute_sequence(responses), patch.object(self.app.store, "search_fulltext", return_value=[source]) as search:
             saved = self.app.chat(self.sid, {"message": "동의보감 원문 찾아줘"})
         search.assert_called_once_with(["起居"], 4)
         self.assertIs(self.calls[1][0], self.calls[2][0])
         self.assertIsNot(self.calls[1][0], self.main)
+        self.assertEqual(len(self.calls), 3)
         self.assertEqual(saved["messages"][-1]["sources"][0]["citations"][0]["offset_end"], 4)
 
     def test_invented_worker_quote_blocks_save(self):
@@ -87,10 +86,10 @@ class ConversationAgentTests(unittest.TestCase):
                 self.app.chat(self.sid, {"message": "산책했어"})
         self.assertEqual(self.app.store.get_session(self.sid)["care"]["events"], [])
 
-    def test_summary_failure_saves_no_worker_records(self):
+    def test_invalid_worker_reply_saves_no_records(self):
         message = "점심 후 10분 걸었어"
         responses = [{"reply": "정리할게.", "task": "records", "instruction": "기록"},
-            findings(memories=[{"category": "activity", "summary": message, "quote": message}]), {"reply": ""}]
+            findings(reply="", memories=[{"category": "activity", "summary": message, "quote": message}])]
         with self.execute_sequence(responses):
             with self.assertRaises(ModelError):
                 self.app.chat(self.sid, {"message": message})
@@ -103,7 +102,7 @@ class ConversationAgentTests(unittest.TestCase):
         start = (datetime.now(KST) + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0).isoformat()
         responses = [{"reply": "일정을 정리할게.", "task": "calendar", "instruction": "산책 일정 추가"}, findings(actions=[{
             "type": "event", "label": "산책", "query": "", "title": "산책", "start": start, "note": "",
-            "operation": "create", "instruction_quote": message}]), {"reply": "산책 일정을 준비했어."}]
+            "operation": "create", "instruction_quote": message}])]
         with self.execute_sequence(responses), patch.object(self.app.store, "search_fulltext", side_effect=AssertionError("Unexpected DB search")):
             saved = self.app.chat(self.sid, {"message": message})
         self.assertEqual(saved["care"]["events"][0]["title"], "산책")

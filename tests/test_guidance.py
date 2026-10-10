@@ -5,7 +5,7 @@ from pathlib import Path
 
 from care import KST, today
 from codex_bridge import validate_result
-from guidance import rule_for
+from guidance import rule_for, measured_value
 from server import App, ROOT
 
 
@@ -20,6 +20,11 @@ class PatientModel:
 
 
 class GuidanceTests(unittest.TestCase):
+    def test_walk_past_tense_has_numeric_evidence_but_elapsed_time_does_not(self):
+        self.assertEqual(measured_value("walk_after_lunch_minutes", "오늘 점심 후 10분 걸었어"), 10)
+        with self.assertRaises(ValueError):
+            measured_value("activity_minutes", "대기 시간이 10분 걸렸어")
+
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.model=PatientModel()
         self.app=App(Path(self.temp.name),ROOT/"data"/"knowledge.seed.json",self.model)

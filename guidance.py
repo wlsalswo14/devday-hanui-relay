@@ -95,7 +95,7 @@ def measured_value(metric, quote):
         if value > 30: raise ValueError("커피 잔 수 범위를 확인해 주세요.")
         return value
     if metric in {"activity_minutes", "walk_after_lunch_minutes"}:
-        if not re.search(r"산책|걷|운동", compact): raise ValueError("활동 발언이 없어요.")
+        if not re.search(r"산책|걷|운동|걸었|걸어", compact): raise ValueError("활동 발언이 없어요.")
         if metric == "walk_after_lunch_minutes" and not re.search(r"점심(?:먹고|식사후|후|먹은뒤|먹은후)", compact):
             raise ValueError("점심 후 활동인지 확인할 수 없어요.")
         if re.search(r"(?:못했|안했|하지않았|못걸었)", compact): return 0

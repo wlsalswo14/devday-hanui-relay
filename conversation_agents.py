@@ -69,7 +69,8 @@ def checked_reply(parsed):
 
 
 def run_conversation(main, store, message, session):
-    plan, _ = main.execute(MAIN_SYSTEM, {"CURRENT_USER_MESSAGE": message}, MAIN_SCHEMA)
+    persona = store.get_system_instructions()["prompt"]
+    plan, _ = main.execute(persona + "\n\nTASK_EXECUTION_RULES:\n" + MAIN_SYSTEM, {"CURRENT_USER_MESSAGE": message}, MAIN_SCHEMA)
     initial = checked_reply(plan)
     task, instruction = plan.get("task"), plan.get("instruction")
     if task not in {"none", "literature", "records", "records_read", "calendar", "web"} or not isinstance(instruction, str) or len(instruction) > 1000:
@@ -95,7 +96,7 @@ def run_conversation(main, store, message, session):
                 sources = store.search_fulltext(keywords, 4)
         else:
             worker.browser_search_enabled = False
-        worker_system = WORKER_SYSTEM
+        worker_system = persona + "\n\nTASK_EXECUTION_RULES:\n" + WORKER_SYSTEM
         worker_system += "ASSIGNED_TASK: " + json.dumps({"task": task, "brief": instruction}, ensure_ascii=False)
         result = worker.respond(message, session["messages"], session["memories"], sources,
                                 require_classical=task == "literature", system=worker_system, task=task)

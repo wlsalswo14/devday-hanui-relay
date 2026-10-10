@@ -30,10 +30,34 @@ class ConversationAgentTests(unittest.TestCase):
 
     def execute_sequence(self, responses):
         self.calls = []
+        self.systems = []
         def execute(model, system, payload, schema, web=False):
             self.calls.append((model, payload, schema))
+            self.systems.append(system)
             return responses.pop(0), []
         return patch.object(GemmaChat, "execute", execute)
+
+    def test_custom_system_instructions_persist_and_reach_main_and_worker(self):
+        prompt = "짧고 다정하게 반말로 대화해."
+        self.app.store.save_system_instructions(prompt)
+        reopened = App(Path(self.temp.name), model=self.main)
+        self.assertEqual(reopened.store.get_system_instructions()["prompt"], prompt)
+        with self.execute_sequence([
+            {"reply": "확인할게.", "task": "records_read", "instruction": "기록 조회"},
+            findings(reply="아직 기록이 없어.")]):
+            self.app.chat(self.sid, {"message": "내 기록 보여줘."})
+        self.assertTrue(all(system.startswith(prompt) for system in self.systems))
+        self.assertIn("TASK_EXECUTION_RULES", self.systems[0])
+        self.assertIn("CURRENT_USER_MESSAGE authorizes", self.systems[1])
+
+    def test_default_system_instructions_and_invalid_changes(self):
+        default = self.app.store.get_system_instructions()
+        self.assertIn("한파이더맨", default["prompt"])
+        self.assertEqual(default["prompt"], default["default_prompt"])
+        for invalid in (None, "", "   ", "x" * 4001):
+            with self.assertRaises(ValueError):
+                self.app.store.save_system_instructions(invalid)
+        self.assertEqual(self.app.store.get_system_instructions(), default)
 
     def test_greeting_one_main_call_no_search_or_worker(self):
         with self.execute_sequence([{"reply": "안녕!", "task": "none", "instruction": ""}]), \

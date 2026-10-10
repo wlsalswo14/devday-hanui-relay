@@ -154,6 +154,16 @@ async function deleteConversation(id){
 $("reset").addEventListener("click",()=>{if(state.session)deleteConversation(state.session.id);});
 $("close-source").addEventListener("click",()=>$("source-dialog").close());
 $("source-dialog").addEventListener("click",event=>{if(event.target===$("source-dialog")){const r=event.target.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)event.target.close();}});
+let defaultSystemPrompt="";
+$("system-instructions-open").addEventListener("click",async()=>{
+  const opener=$("system-instructions-open");opener.disabled=true;
+  try{const settings=await api("/api/system-instructions");defaultSystemPrompt=settings.default_prompt;$("system-instructions-text").value=settings.prompt;$("system-instructions-status").textContent="";$("system-instructions-dialog").showModal();$("system-instructions-text").focus();}catch(error){showError(error.message);}finally{opener.disabled=false;}
+});
+$("system-instructions-default").addEventListener("click",()=>{$("system-instructions-text").value=defaultSystemPrompt;$("system-instructions-status").textContent="저장하면 기본값으로 적용돼요.";});
+$("system-instructions-form").addEventListener("submit",async event=>{
+  event.preventDefault();const save=$("system-instructions-save");save.disabled=true;
+  try{const settings=await api("/api/system-instructions",{method:"POST",body:JSON.stringify({prompt:$("system-instructions-text").value})});$("system-instructions-text").value=settings.prompt;$("system-instructions-status").textContent="저장했어요.";}catch(error){$("system-instructions-status").textContent=error.message;}finally{save.disabled=false;}
+});
 async function init(){
   busy(true);try{
     state.config=await api("/api/config");const option=$("mode").querySelector('option[value="codex"]');option.disabled=!state.config.codex_enabled;

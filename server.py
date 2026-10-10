@@ -343,6 +343,8 @@ class Handler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/sessions":
             return self.respond(200, {"sessions": self.app.store.list_sessions()})
+        if path == "/api/system-instructions":
+            return self.respond(200, self.app.store.get_system_instructions())
         if path == "/api/config":
             return self.respond(200, {"codex_enabled": self.app.codex_enabled,
                 "knowledge_count": self.app.store.knowledge_count(),
@@ -414,6 +416,8 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(body, dict):
                 raise ValueError("요청 형식이 올바르지 않아요.")
             path = urlparse(self.path).path
+            if path == "/api/system-instructions":
+                return self.respond(200, self.app.store.save_system_instructions(body.get("prompt")))
             cancel = re.fullmatch(r"/api/requests/([a-f0-9]{32})/cancel", path)
             if cancel:
                 self.app.requests.cancel(cancel[1])

@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 from care import CareStore
 from guidance import GuidanceStore
 from classical_db import ClassicalDB
+from system_instructions import DEFAULT_SYSTEM_PROMPT
 
 
 def now() -> str:
@@ -34,6 +35,7 @@ class Store:
         with self.connect() as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS knowledge (id TEXT PRIMARY KEY, record TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, created_at TEXT NOT NULL);
                 CREATE TABLE IF NOT EXISTS messages (
                     seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT UNIQUE NOT NULL,
@@ -73,6 +75,19 @@ class Store:
         finally:
             self._connections.active = None
             db.close()
+
+    def get_system_instructions(self):
+        with self.connect() as db:
+            row = db.execute("SELECT value FROM app_settings WHERE key='system_prompt'").fetchone()
+        return {"prompt": row[0] if row else DEFAULT_SYSTEM_PROMPT, "default_prompt": DEFAULT_SYSTEM_PROMPT}
+
+    def save_system_instructions(self, prompt):
+        if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > 4000:
+            raise ValueError("시스템 지침은 1~4000자로 입력해 주세요.")
+        with self.connect() as db:
+            db.execute("INSERT INTO app_settings(key,value) VALUES('system_prompt',?) "
+                       "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (prompt.strip(),))
+        return self.get_system_instructions()
 
     def refresh_knowledge(self):
         if not self.seed.exists():

@@ -13,6 +13,21 @@ from server import App
 
 
 class GoogleBridgeTests(unittest.TestCase):
+    def test_malformed_structured_output_retries_once_with_the_same_request(self):
+        malformed = {"candidates": [{"content": {"parts": [{"text": '{"reply":'}]}}]}
+        valid = {"candidates": [{"content": {"parts": [{"text": '{"reply":"ok"}'}]}}]}
+        with patch("google_bridge.send", side_effect=[malformed, valid]) as send:
+            parsed, _ = self.model().execute("Reply", {"CURRENT_USER_MESSAGE": "hello"}, {})
+        self.assertEqual(parsed, {"reply": "ok"})
+        self.assertEqual(send.call_count, 2)
+        self.assertEqual(send.call_args_list[0].args[0].data, send.call_args_list[1].args[0].data)
+
+    def test_repeated_malformed_output_fails_without_unbounded_retries(self):
+        malformed = {"candidates": [{"content": {"parts": [{"text": 'invalid'}]}}]}
+        with patch("google_bridge.send", return_value=malformed) as send, self.assertRaises(ModelError):
+            self.model().execute("Reply", {"CURRENT_USER_MESSAGE": "hello"}, {})
+        self.assertEqual(send.call_count, 2)
+
     def model(self):
         model = GemmaChat(Path(tempfile.gettempdir()), key="synthetic-key", effort="high")
         model.browser_search_enabled = False

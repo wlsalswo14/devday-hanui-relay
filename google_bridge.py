@@ -326,6 +326,21 @@ class GemmaChat(CodexChat):
         for attempt in range(2):
             try:
                 result = send(request)
+                if not web:
+                    candidate = next(iter(result.get("candidates", [])), {})
+                    output = "".join(part.get("text", "") for part in candidate.get("content", {}).get("parts", []) if not part.get("thought"))
+                    if output.strip().startswith("```") and "\n" in output:
+                        output = output.strip().split("\n", 1)[1].rsplit("```", 1)[0]
+                    try:
+                        parsed = json.loads(output)
+                        if not isinstance(parsed, dict):
+                            raise ValueError()
+                    except (ValueError, TypeError):
+                        # Retry inference only; no calendar or patient writes have run.
+                        check_cancelled()
+                        if attempt == 0:
+                            continue
+                        raise ModelError("Gemma 응답 형식을 확인하지 못했어요. 기록은 변경하지 않았어요.") from None
                 break
             except urllib.error.HTTPError as exc:
                 # Never expose provider bodies, which can echo credentials or patient text.
@@ -356,14 +371,6 @@ class GemmaChat(CodexChat):
                  "findings": text, "grounded_sources": grounding["groundingChunks"]}, schema)
             self.grounding = grounding
             return parsed, [{"type": "item.completed", "item": {"type": "web_search"}}]
-        if text.strip().startswith("```"):
-            text = text.strip().split("\n", 1)[1].rsplit("```", 1)[0]
-        try:
-            parsed = json.loads(text)
-            if not isinstance(parsed, dict):
-                raise ValueError()
-        except (ValueError, TypeError):
-            raise ModelError("Gemma 응답 형식을 확인하지 못했어요. 기록은 변경하지 않았어요.") from None
         records = payload.get("RETRIEVED_KNOWLEDGE", [])
         if records and isinstance(parsed.get("citations"),list):
             if quote_options:

@@ -302,7 +302,7 @@ class App:
                 outcomes = []
                 if mode == "codex":
                     for action in actions:
-                        if action["type"] in {"event", "booking"} and action.get("operation"):
+                        if action["type"] in {"event", "booking"}:
                             outcomes.append(self.calendar_action(session_id, action, message.strip()))
                 if outcomes:
                     if citations or any(a["type"] not in {"event", "booking", "calendar"} for a in actions):

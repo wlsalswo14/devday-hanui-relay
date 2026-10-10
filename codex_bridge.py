@@ -473,6 +473,11 @@ def compact_task_schema(schema, task):
         action["properties"]["type"]["enum"] = ["event", "booking", "calendar"] if task == "calendar" else ["records", "checkin", "goal"]
         # Omit irrelevant empty fields; validate_result normalizes the UI/server shape.
         action["required"] = ["type"]
+        if task == "calendar":
+            # A mutation without its operation cannot be executed. Keep these
+            # fields mandatory so a prose promise cannot silently replace a write.
+            action["required"] += ["operation", "instruction_quote", "title", "start", "end", "target_id"]
+            action["properties"]["operation"]["enum"] = ["", "create", "update", "delete", "confirm", "cancel"]
         compact["properties"]["actions"]["maxItems"] = 4
     return compact
 

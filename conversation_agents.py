@@ -5,6 +5,7 @@ import re
 from codex_bridge import ModelError, object_schema, STRING
 from google_bridge import GemmaChat
 from request_lifecycle import check_cancelled
+from care import local_time
 
 
 MAIN_SYSTEM = """You are Hanui's conversational Gemma. Read CURRENT_USER_MESSAGE together with
@@ -107,6 +108,27 @@ def conversation_context(session):
     return list(reversed(recent))
 
 
+def incomplete_calendar_draft(result):
+    """Check the draft before any mutation, without guessing missing user details."""
+    for action in result["actions"]:
+        kind, operation = action["type"], action.get("operation")
+        if kind not in {"event", "booking"}:
+            continue
+        allowed = {"create", "update", "delete"} if kind == "event" else {"create", "update", "confirm", "cancel"}
+        if operation not in allowed:
+            return "The requested mutation needs an explicit valid operation."
+        if operation == "create":
+            if kind == "event" and not action.get("title", "").strip():
+                return "Event creation needs the user's requested title."
+            try:
+                local_time(action.get("start"))
+                if action.get("end"):
+                    local_time(action["end"])
+            except ValueError:
+                return "Event/booking creation needs valid ISO start/end with KST (+09:00)."
+    return ""
+
+
 def run_conversation(main, store, message, session):
     persona = store.get_system_instructions()["prompt"]
     payload = {"CURRENT_USER_MESSAGE": message, "RECENT_CONVERSATION": conversation_context(session),
@@ -157,6 +179,15 @@ def run_conversation(main, store, message, session):
         worker_system += "ASSIGNED_TASK: " + json.dumps({"task": task, "brief": instruction}, ensure_ascii=False)
         result = worker.respond(message, session["messages"], session["memories"], sources,
                                 require_classical=task == "literature", system=worker_system, task=task)
+        if task == "calendar" and (draft_error := incomplete_calendar_draft(result)):
+            check_cancelled()
+            # Re-run only the incomplete draft. No writes have been attempted;
+            # the user's original message still supplies all authorization.
+            result = worker.respond(message, session["messages"], session["memories"], sources,
+                require_classical=False, system=worker_system + "\nDRAFT_CORRECTION: " + draft_error +
+                " Return a complete executable draft for the explicit request, including operation, "
+                "title, ISO start/end, and the exact current instruction quote. If details are "
+                "missing from the user's message/context, ask and return actions=[]; never invent them.", task=task)
         allowed = {"records": {"records", "checkin", "goal"}, "records_read": set(), "calendar": {"calendar", "event", "booking"},
                    "literature": {"web"}, "web": {"web", "hospitals"}}[task]
         if any(action["type"] not in allowed for action in result["actions"]):

@@ -224,6 +224,37 @@ class ConversationAgentTests(unittest.TestCase):
         self.assertIn("일정을 추가했어요", saved["messages"][-1]["content"])
         self.assertEqual(set(self.calls[1][2]["properties"]), {"reply", "actions"})
         self.assertNotIn("caffeine", self.calls[1][2]["properties"]["actions"]["items"]["properties"])
+        self.assertEqual(set(self.calls[1][2]["properties"]["actions"]["items"]["required"]),
+                         {"type", "operation", "instruction_quote", "title", "start", "end", "target_id"})
+
+    def test_calendar_mutation_without_operation_cannot_promise_a_saved_event(self):
+        message = "내일 오후 3시에 산책 추가해줘"
+        start = (datetime.now(KST) + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0).isoformat()
+        responses = [{"reply": "정리할게.", "task": "calendar", "instruction": "산책 추가"},
+                     findings(reply="등록할게요.", actions=[{"type": "event", "title": "산책",
+                              "start": start, "instruction_quote": message}]),
+                     findings(reply="등록할게요.", actions=[{"type": "event", "title": "산책",
+                              "start": start, "instruction_quote": message}])]
+        with self.execute_sequence(responses), self.assertRaises(ValueError):
+            self.app.chat(self.sid, {"message": message})
+        saved = self.app.store.get_session(self.sid)
+        self.assertEqual(saved["care"]["events"], [])
+        self.assertEqual(saved["messages"], [])
+
+    def test_incomplete_calendar_draft_is_retried_before_any_write(self):
+        message = "내일 오후 3시에 산책 추가해줘"
+        start = (datetime.now(KST) + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0).isoformat()
+        responses = [{"reply": "정리할게.", "task": "calendar", "instruction": "산책 추가"},
+                     findings(actions=[{"type": "event", "operation": "create", "title": "산책",
+                                       "instruction_quote": message}]),
+                     findings(actions=[{"type": "event", "operation": "create", "title": "산책",
+                                       "start": start, "instruction_quote": message}])]
+        with self.execute_sequence(responses):
+            saved = self.app.chat(self.sid, {"message": message})
+        self.assertEqual(len(self.calls), 3)
+        self.assertIn("DRAFT_CORRECTION", self.systems[-1])
+        self.assertEqual(len(saved["care"]["events"]), 1)
+        self.assertEqual(len(saved["messages"]), 2)
 
     def test_compact_calendar_fields_still_require_user_evidence_before_writes(self):
         start = (datetime.now(KST) + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0).isoformat()

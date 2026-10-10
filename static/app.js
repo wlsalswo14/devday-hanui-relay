@@ -55,7 +55,7 @@ window.addEventListener("pagehide",cancelActiveRequest);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelActiveRequest();});
 async function api(path, options={}) {
   let request=null;
-  const ai=options.method==="POST"&&/\/(chat|hospitals|web|guidance)$/.test(path)&&(!path.endsWith("/guidance")||JSON.parse(options.body||"{}").start_conversation);
+  const ai=options.method==="POST"&&/\/(chat|hospitals|web|guidance|report-draft)$/.test(path)&&(!path.endsWith("/guidance")||JSON.parse(options.body||"{}").start_conversation);
   if(ai){request={id:crypto.randomUUID().replaceAll("-",""),controller:new AbortController()};activeAI=request;options={...options,signal:request.controller.signal,body:JSON.stringify({...JSON.parse(options.body||"{}"),request_id:request.id})};busy(true);}
   try{
   const response=await fetch(path,{headers:{"Content-Type":"application/json"},...options});

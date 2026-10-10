@@ -4,6 +4,10 @@
   #report-document-body { display:block; width:100%; min-height:calc(100dvh - 300px); padding:24px 0; border:0; border-radius:0; background:transparent; font-size:16px; line-height:1.9; resize:vertical; }
   #report-print { display:none; }
   #report-state { margin:0; max-width:240px; font-size:12px; }
+  #report-draft-dialog { width:min(720px,calc(100vw - 32px)); }
+  #report-draft-body { white-space:pre-wrap; overflow-wrap:anywhere; font-size:15px; line-height:1.8; margin:16px 0 24px; }
+  #report-view .view-head { flex-wrap:wrap; gap:12px; }
+  #report-view .row-actions { flex-wrap:wrap; }
   @media (max-width:700px) { #report-document-title { font-size:22px; } #report-state { max-width:120px; } }
   .reminder-tray { position:fixed; z-index:60; top:70px; right:24px; width:min(340px,calc(100vw - 32px)); display:grid; gap:10px; max-height:50vh; overflow:auto; }
   .reminder-tray[hidden] { display:none; }

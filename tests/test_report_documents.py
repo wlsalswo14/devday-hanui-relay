@@ -2,6 +2,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from server import App
+from unittest.mock import Mock
+from codex_bridge import ModelError
+from request_lifecycle import RequestCancelled
 
 
 class Model:
@@ -39,3 +42,35 @@ class ReportDocumentTests(unittest.TestCase):
                      {'title':'x'*161,'body':'x','revision':0},{'title':'x','body':'x','revision':True}]:
             with self.assertRaises(ValueError):self.app.report_documents.save(self.sid,body)
         self.assertEqual(self.app.report_documents.get(self.sid)['revision'],0)
+
+    def draft_model(self, quote='어제는 충분히 잤고 오늘은 가볍게 산책했다.'):
+        return Mock(available=Mock(return_value=True),draft_report=Mock(return_value={
+            'title':'생활 리포트','sections':[{'heading':'생활 기록','statements':[{
+                'text':'수면과 산책을 기록했습니다.','evidence':[{'source_id':'current-draft','quote':quote}]}]}]}))
+
+    def test_draft_is_separate_and_has_exact_original_references(self):
+        original='어제는 충분히 잤고 오늘은 가볍게 산책했다.'
+        self.app.report_documents.save(self.sid,{'title':'내 리포트','body':original,'revision':0})
+        result=self.app.report_documents.draft(self.sid,{'current':{'body':original}},self.draft_model())
+        self.assertEqual(self.app.report_documents.get(self.sid)['body'],original)
+        self.assertIn('[1]',result['body'])
+        self.assertEqual(result['references'][0]['quote'],original)
+        self.assertEqual(result['references'][0]['kind'],'user_written_draft')
+
+    def test_invalid_quote_or_cross_session_reference_is_rejected(self):
+        model=self.draft_model('없는 원문을 만들어낸 경우')
+        with self.assertRaises(ModelError):self.app.report_documents.draft(self.sid,{'current':{'body':'실제 작성 내용'}},model)
+        model=self.draft_model('실제 작성 내용')
+        model.draft_report.return_value['sections'][0]['statements'][0]['evidence'][0]['source_id']='another-session-message'
+        with self.assertRaises(ModelError):self.app.report_documents.draft(self.sid,{'current':{'body':'실제 작성 내용'}},model)
+
+    def test_no_records_never_invents_a_report(self):
+        model=self.draft_model()
+        with self.assertRaises(ValueError):self.app.report_documents.draft(self.sid,{},model)
+        model.draft_report.assert_not_called()
+
+    def test_cancelled_draft_cannot_replace_saved_document(self):
+        self.app.report_documents.save(self.sid,{'title':'보존','body':'내가 작성한 리포트','revision':0})
+        model=self.draft_model();model.draft_report.side_effect=RequestCancelled()
+        with self.assertRaises(RequestCancelled):self.app.report_documents.draft(self.sid,{'current':{'body':'내가 작성한 리포트'}},model)
+        self.assertEqual(self.app.report_documents.get(self.sid)['body'],'내가 작성한 리포트')

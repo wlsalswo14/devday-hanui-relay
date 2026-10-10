@@ -407,7 +407,7 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(415, {"error": "JSON 요청만 받을 수 있어요."})
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            limit = 100000 if re.fullmatch(r"/api/sessions/[a-f0-9]{32}/report", urlparse(self.path).path) else 20000
+            limit = 100000 if re.fullmatch(r"/api/sessions/[a-f0-9]{32}/report(?:-draft)?", urlparse(self.path).path) else 20000
             if not 0 < length <= limit:
                 self.close_connection = True
                 return self.respond(413, {"error": "요청이 너무 크거나 비어 있어요."})
@@ -421,6 +421,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, {"cancelled": True})
             if path == "/api/sessions":
                 return self.respond(201, self.app.store.create_session())
+            draft = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/report-draft", path)
+            if draft:
+                with self.app.requests.scope(self.connection, body.get("request_id")):
+                    return self.respond(200, self.app.report_documents.draft(draft[1], body, self.app.model))
             document = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/report", path)
             if document:
                 return self.respond(200, self.app.report_documents.save(document[1], body))

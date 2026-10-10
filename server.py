@@ -16,6 +16,7 @@ from store import Store
 from care import text, local_time
 from reminders import Reminders
 from report_documents import ReportDocuments
+from conversation_agents import run_conversation
 
 ROOT = Path(__file__).resolve().parent
 
@@ -231,20 +232,16 @@ class App:
             session = self.store.get_session(session_id)
             if len(session["messages"]) >= 200:
                 raise ValueError("대화가 길어졌어요. 새 대화를 시작해 주세요.")
-            if mode == "codex" and isinstance(self.model, GemmaChat) and self.model.browser.requested(message):
-                result = self.model.browse(message.strip())
-                check_cancelled()
-                with self.store.connect():
-                    saved = self.store.save_turn(session_id, message.strip(), result["reply"], [], [], mode, [], [])
-                    check_cancelled()
-                    return saved
             # Current query takes priority; short references may inherit recent context.
             query = message
             if len(message.strip()) < 12 and re.search(r"그거|더|응|그래|관련", message):
                 past = [m["content"] for m in session["messages"] if m["role"] == "user"]
                 if past:
                     query += " " + past[-1]
-            if mode == "codex" and hasattr(self.model, "retrieval_keywords"):
+            delegated = mode == "codex" and isinstance(self.model, GemmaChat)
+            if delegated:
+                result, sources = run_conversation(self.model, self.store, message.strip(), session)
+            elif mode == "codex" and hasattr(self.model, "retrieval_keywords"):
                 if isinstance(self.model,CodexChat):
                     keywords=self.model.retrieval_keywords(message.strip(),session["messages"],session["care"]["guidance"]["plans"])
                 else:
@@ -252,7 +249,7 @@ class App:
                 sources = self.store.search_fulltext(keywords,4 if isinstance(self.model,GemmaChat) else 8)
             else:
                 sources = self.store.search(query)
-            if isinstance(self.model, CodexChat):
+            if not delegated and isinstance(self.model, CodexChat):
                 care = session["care"]
                 self.model.care_context = {key: care[key] for key in ("today", "summary", "goals", "events", "bookings", "conflicts")}
                 self.model.care_context["checkins"] = care["checkins"][:7]
@@ -261,13 +258,14 @@ class App:
                 self.model.care_context["clinician_plans"] = care["guidance"]["plans"]
                 self.model.care_context["patient_observations"] = care["guidance"]["observations"][-20:]
             responder = self.model.respond if mode == "codex" else demo_response
-            result = responder(message.strip(), session["messages"], session["memories"], sources)
+            if not delegated:
+                result = responder(message.strip(), session["messages"], session["memories"], sources)
             check_cancelled()
             actions = result.get("actions", [])
             observations = self.store.guidance.validate(session_id, message.strip(), result.get("observations", []))
             # Luna selects read-only information tasks from the conversation.
             # Calendar writes run after information lookup and are saved with the chat turn.
-            if mode == "codex" and hasattr(self.model, "search_web"):
+            if not delegated and mode == "codex" and hasattr(self.model, "search_web"):
                 for action in actions[:2]:
                     kind = action.get("type")
                     lookup = kind in {"hospitals", "web"} and bool(action.get("query"))

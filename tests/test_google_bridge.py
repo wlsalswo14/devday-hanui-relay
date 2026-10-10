@@ -71,11 +71,12 @@ class GoogleBridgeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             app = App(Path(temporary), model=model)
             sid = app.store.create_session()["id"]
-            responses = [({"keywords": ["起居"]}, []), ({"reply": "확인", "source_ids": [],
+            responses = [({"reply": "원문을 찾아볼게요.", "task": "literature", "instruction": "원문 검색"}, []),
+                         ({"keywords": ["起居"]}, []), ({"reply": "확인", "source_ids": [],
                          "memories": [], "citations": [], "actions": []}, [])]
-            with patch.object(model, "execute", side_effect=responses):
+            with patch.object(GemmaChat, "execute", side_effect=responses):
                 with self.assertRaises(ModelError):
-                    app.chat(sid, {"message": "산책 일정 넣어줘"})
+                    app.chat(sid, {"message": "동의보감 원문 찾아줘"})
             session = app.store.get_session(sid)
             self.assertEqual(session["messages"], [])
             self.assertEqual(session["care"]["events"], [])

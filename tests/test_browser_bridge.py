@@ -65,7 +65,8 @@ class BrowserTests(unittest.TestCase):
             app = App(Path(directory), model=model)
             sid = app.store.create_session()["id"]
             for error in [ModelError("브라우저 연결 실패"), RequestCancelled()]:
-                with patch.object(model, "browse", side_effect=error):
+                with patch.object(model, "execute", return_value=({"reply": "확인할게요.", "task": "web", "instruction": "브라우저 작업"}, [])), \
+                     patch.object(GemmaChat, "browse", side_effect=error):
                     with self.assertRaises(ModelError):
                         app.chat(sid, {"message": "브라우저 메뉴 열어줘"})
                 self.assertEqual(app.store.get_session(sid)["messages"], [])

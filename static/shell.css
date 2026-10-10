@@ -6,6 +6,13 @@
   .session-delete svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
   .session-delete:hover { background:var(--hn-sb-hover); color:#ad354a; }
   .session-delete:disabled { opacity:.4; cursor:default; }
+  @media (hover:hover) and (pointer:fine) {
+    .session-delete { opacity:0; pointer-events:none; }
+    .session-row:hover .session-delete,
+    .session-row:focus-within .session-delete { opacity:1; pointer-events:auto; }
+    .session-row:hover .session-delete:disabled,
+    .session-row:focus-within .session-delete:disabled { opacity:.4; }
+  }
   :root {
     --hn-bg: #ffffff;
     --hn-sb-bg: #f0f4f9;

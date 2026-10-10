@@ -313,7 +313,7 @@ class CodexChat:
         return validate_result({"reply":question.strip(),"source_ids":[],"memories":[],
             "actions":[],"citations":parsed.get("citations",[])},"",sources,require_classical=True)
 
-    def respond(self, message: str, history: list, memories: list, sources: list, *, require_classical=True, system=None) -> dict:
+    def respond(self, message: str, history: list, memories: list, sources: list, *, require_classical=True, system=None, task=None) -> dict:
         if require_classical:
             require_classical_sources(sources)
         payload = {
@@ -344,7 +344,14 @@ class CodexChat:
             source_ids = list(dict.fromkeys(s["id"] for s in sources))
             schema["properties"]["source_ids"]["items"]["enum"] = source_ids
             schema["properties"]["citations"]["items"]["properties"]["source_id"]["enum"] = source_ids
+        if task:
+            schema = compact_task_schema(schema, task)
         parsed, _ = self.execute(system or SYSTEM, payload, schema)
+        if task:
+            if not isinstance(parsed, dict):
+                raise ModelError("작업 에이전트 답변 형식을 확인하지 못했어요.")
+            for key in ("source_ids", "citations", "memories", "observations", "actions"):
+                parsed.setdefault(key, [])
         return validate_result(parsed, message, sources, require_classical=require_classical)
 
     def retrieval_keywords(self, message, history, clinician_context=None):
@@ -448,6 +455,26 @@ class CodexChat:
         finally:
             output.unlink(missing_ok=True)
             schema_path.unlink(missing_ok=True)
+
+
+def compact_task_schema(schema, task):
+    """Request only useful worker output; existing validators supply empty defaults."""
+    fields = {"literature": ["reply", "citations"], "web": ["reply"],
+              "records": ["reply", "memories", "observations", "actions"],
+              "calendar": ["reply", "actions"]}.get(task)
+    if fields is None:
+        raise ModelError("작업 에이전트 종류를 확인해 주세요.")
+    compact = object_schema({key: schema["properties"][key] for key in fields})
+    if task in {"records", "calendar"}:
+        action = compact["properties"]["actions"]["items"]
+        keep = ({"type", "label", "operation", "target_id", "title", "start", "end", "location", "note", "instruction_quote", "search_id", "hospital_id"}
+                if task == "calendar" else {"type", "label", "title", "query", "note", "sleep", "stress", "energy", "discomfort", "activity", "caffeine"})
+        action["properties"] = {key: value for key, value in action["properties"].items() if key in keep}
+        action["properties"]["type"]["enum"] = ["event", "booking", "calendar"] if task == "calendar" else ["records", "checkin", "goal"]
+        # Omit irrelevant empty fields; validate_result normalizes the UI/server shape.
+        action["required"] = ["type"]
+        compact["properties"]["actions"]["maxItems"] = 4
+    return compact
 
 
 def require_classical_sources(sources):

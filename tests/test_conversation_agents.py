@@ -60,13 +60,14 @@ class ConversationAgentTests(unittest.TestCase):
     def test_literature_worker_search_and_exact_citation(self):
         source = {"id": "fixture", "category": "classical", "body": "起居有常。", "book": "東醫寶鑑"}
         responses = [{"reply": "원문을 찾아볼게.", "task": "literature", "instruction": "규칙적인 생활 원문 탐색"},
-            {"keywords": ["起居"]}, findings(source_ids=["fixture"], citations=[{"source_id": "fixture", "quote": "起居有常", "reading": "생활에 규칙이 있다"}])]
+            {"keywords": ["起居"]}, {"reply": "원문을 찾았어.", "citations": [{"source_id": "fixture", "quote": "起居有常", "reading": "생활에 규칙이 있다"}]}]
         with self.execute_sequence(responses), patch.object(self.app.store, "search_fulltext", return_value=[source]) as search:
             saved = self.app.chat(self.sid, {"message": "동의보감 원문 찾아줘"})
         search.assert_called_once_with(["起居"], 4)
         self.assertIs(self.calls[1][0], self.calls[2][0])
         self.assertIsNot(self.calls[1][0], self.main)
         self.assertEqual(len(self.calls), 3)
+        self.assertEqual(set(self.calls[2][2]["properties"]), {"reply", "citations"})
         self.assertEqual(saved["messages"][-1]["sources"][0]["citations"][0]["offset_end"], 4)
 
     def test_invented_worker_quote_blocks_save(self):
@@ -107,6 +108,17 @@ class ConversationAgentTests(unittest.TestCase):
             saved = self.app.chat(self.sid, {"message": message})
         self.assertEqual(saved["care"]["events"][0]["title"], "산책")
         self.assertIn("일정을 추가했어요", saved["messages"][-1]["content"])
+        self.assertEqual(set(self.calls[1][2]["properties"]), {"reply", "actions"})
+        self.assertNotIn("caffeine", self.calls[1][2]["properties"]["actions"]["items"]["properties"])
+
+    def test_compact_calendar_fields_still_require_user_evidence_before_writes(self):
+        start = (datetime.now(KST) + timedelta(days=1)).replace(hour=15, minute=0, second=0, microsecond=0).isoformat()
+        responses = [{"reply": "확인할게.", "task": "calendar", "instruction": "산책 추가"},
+                     {"reply": "산책을 준비했어.", "actions": [{"type": "event", "operation": "create", "title": "산책", "start": start}]}]
+        with self.execute_sequence(responses):
+            with self.assertRaises(ValueError):
+                self.app.chat(self.sid, {"message": "내일 산책 추가해줘"})
+        self.assertEqual(self.app.store.get_session(self.sid)["care"]["events"], [])
 
     def test_cancelled_agent_work_is_discarded_before_summary_or_save(self):
         message = "점심 후 10분 걸었어"

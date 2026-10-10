@@ -156,7 +156,7 @@ class GemmaChat(CodexChat):
         self.browser_decision = {"message": message, "needed": needed, "query": query.strip() if needed else ""}
         return self.search_terms
 
-    def respond(self, message, history, memories, sources, *, require_classical=True, system=None):
+    def respond(self, message, history, memories, sources, *, require_classical=True, system=None, task=None):
         self.browser_search = None
         search_error = None
         decision = self.browser_decision or {}
@@ -171,7 +171,7 @@ class GemmaChat(CodexChat):
             except ModelError as exc:
                 check_cancelled()
                 search_error = str(exc)
-        result = super().respond(message, history, memories, sources, require_classical=require_classical, system=system)
+        result = super().respond(message, history, memories, sources, require_classical=require_classical, system=system, task=task)
         # The model's retrieval decision owns web execution; do not run the older
         # provider-native search path as an additional or unapproved search.
         result["actions"] = [a for a in result["actions"] if a["type"] not in {"web", "hospitals"}]

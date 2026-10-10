@@ -33,7 +33,9 @@ CURRENT_DATE_KST for dates. Never create a record for hypotheticals, other peopl
 Each memory quote must be an exact substring of CURRENT_USER_MESSAGE. For patient observations
 return metric, date, exact quote, value and instruction_id only for explicit user facts. Do not
 infer adherence or interpret clinician instructions as completed patient actions. Zero is valid.
-When an observation records the numeric fact, do not also propose a duplicate checkin action.
+Represent each numeric lifestyle fact ONCE in observations, without a duplicate memory or
+checkin action. Use memories for qualitative personal context without a matching observation.
+Omit empty optional action fields. Use Korean labels. Return only fields in the output schema.
 If supplied classical sources are used, include an exact contiguous body quote and a faithful
 Korean reading; source IDs must come from those supplied sources. No sources means empty
 source_ids and citations. No forced research or quotations for records/calendar. Never claim
@@ -90,7 +92,7 @@ def run_conversation(main, store, message, session):
         worker_system = WORKER_SYSTEM
         worker_system += "ASSIGNED_TASK: " + json.dumps({"task": task, "brief": instruction}, ensure_ascii=False)
         result = worker.respond(message, session["messages"], session["memories"], sources,
-                                require_classical=task == "literature", system=worker_system)
+                                require_classical=task == "literature", system=worker_system, task=task)
         allowed = {"records": {"records", "checkin", "goal"}, "calendar": {"calendar", "event", "booking"},
                    "literature": {"web"}, "web": {"web", "hospitals"}}[task]
         if any(action["type"] not in allowed for action in result["actions"]):

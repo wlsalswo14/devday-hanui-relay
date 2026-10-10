@@ -23,12 +23,12 @@
 
   <nav class="app-nav" aria-label="주요 기능">
     <button data-view="chat" class="active" aria-current="page"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-3 3V11.5A7.5 7.5 0 0 1 9.5 4h3a7.5 7.5 0 0 1 7.5 7.5Z"/></svg><span>대화</span></button>
-    <button data-view="daily"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 2v4m6-4v4M9 11h6m-6 4h4"/></svg><span>기록</span></button>
-    <button data-view="library"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v15M12 5C8 2 3 4 3 4v15s5-2 9 1c4-3 9-1 9-1V4s-5-2-9 1Z"/></svg><span>자료</span></button>
     <button data-view="calendar"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18m-14 5h2m3 0h2"/></svg><span>캘린더</span></button>
     <button data-view="report"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-6-6Zm0 0v6h6M8 17v-3m4 3v-6m4 6v-4"/></svg><span>리포트</span></button>
   </nav>
     <section class="sidebar-conversations" aria-label="대화 목록"><h2>대화</h2><div id="session-list"></div><select id="session-select" class="sr-only" aria-label="대화 선택" tabindex="-1"></select></section>
+    <!-- Retain internal data/control bindings; these are no longer sidebar UI. -->
+    <div hidden inert>
     <button id="toggle-sidebar" class="quiet" type="button" aria-controls="context-sidebar" aria-expanded="false">기록·자료</button>
 
     <aside id="context-sidebar" class="context" aria-label="생활기록과 근거 자료" hidden>
@@ -38,7 +38,8 @@
       <section class="context-section library"><div class="section-label"><span>참고 자료</span><span id="knowledge-count" class="count">0</span></div><div id="sources"></div></section>
     </aside>
     <details id="chat-menu" class="chat-menu"><summary aria-label="대화 설정">⋯</summary><div class="chat-menu-items"><label class="mode"><span class="sr-only">대화 방식</span><select id="mode"><option value="codex">에이전트</option><option value="demo">샘플</option></select></label><button id="rename-chat" class="quiet" type="button">이름 변경</button><button id="reset" class="quiet">대화 삭제</button></div></details>
-    <button id="system-instructions-open" class="quiet system-instructions-link" type="button">시스템 지침</button>
+    </div>
+    <button id="system-instructions-open" class="quiet system-instructions-link" type="button"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/></svg><span>시스템 지침</span></button>
   </aside>
   <header class="topbar"><button id="mobile-nav-toggle" class="quiet" type="button" aria-label="메뉴 열기" aria-controls="app-sidebar" aria-expanded="false">☰</button><a class="brand" href="/" aria-label="Hanui 홈">hanui</a></header>
   <button id="nav-backdrop" type="button" aria-label="메뉴 닫기" hidden></button>

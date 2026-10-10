@@ -44,8 +44,12 @@ def main():
                 assert first!=second
                 select_conversation(page,first)
                 expect(page.locator(f'.session-item[data-session-id="{first}"]')).to_have_attribute('aria-current','true')
-                for view in ['chat','daily','library','calendar','report']:
+                for view in ['chat','calendar','report']:
                     expect(page.locator(f'.app-nav [data-view="{view}"] svg[aria-hidden="true"]')).to_have_count(1)
+                expect(page.locator('.app-nav [data-view="daily"], .app-nav [data-view="library"]')).to_have_count(0)
+                expect(page.locator('#toggle-sidebar')).to_be_hidden()
+                expect(page.locator('#chat-menu')).to_be_hidden()
+                expect(page.locator('#system-instructions-open svg')).to_have_count(1)
                 shots=ROOT/'.runtime/screenshots';shots.mkdir(parents=True,exist_ok=True)
                 page.screenshot(path=str(shots/'sidebar-icons-desktop.png'))
                 page.locator('#message').fill('보존할 초안')
@@ -107,13 +111,14 @@ def main():
                     page.keyboard.press('Tab')
                     expect(page.locator('#nav-toggle')).to_be_focused()
                     assert not page.evaluate(TEXT_CONTRAST)['failures']
-                    page.locator('#chat-menu > summary').click()
-                    settings=page.locator('.chat-menu-items').bounding_box()
-                    assert settings['y']>=0 and settings['x']+settings['width']<=width
+                    page.locator('#system-instructions-open').click()
+                    expect(page.locator('#system-instructions-dialog')).to_be_visible()
+                    page.locator('#system-instructions-dialog .close-dialog').click()
+                    page.locator('#system-instructions-open').focus()
                     page.keyboard.press('Escape')
                     expect(page.locator('#app-sidebar')).to_be_hidden()
                     expect(page.locator('#mobile-nav-toggle')).to_be_focused()
-                    for view in ['daily','library','calendar','report','chat']:
+                    for view in ['calendar','report','chat']:
                         open_menu(page)
                         page.locator(f'.app-nav [data-view="{view}"]').click()
                         expect(page.locator('#app-sidebar')).to_be_hidden()
@@ -125,7 +130,7 @@ def main():
                 assert not errors,errors
                 browser.close()
         finally:server.shutdown();server.server_close()
-    print(json.dumps({'checks':['five navigation icons','delete confirmation cancel','inactive deletion preserves draft','active deletion switches conversation','last deletion creates new conversation','left-sidebar contains all tools','desktop collapse/reload','recent conversation switching','mobile inert closed drawer','Escape focus restoration','all mobile views','upward settings menu','backdrop close','composer in viewport'],'console_errors':errors}))
+    print(json.dumps({'checks':['three navigation icons','removed records/library/context/menu controls','system instructions icon and dialog','delete confirmation cancel','inactive deletion preserves draft','active deletion switches conversation','last deletion creates new conversation','desktop collapse/reload','recent conversation switching','mobile inert closed drawer','Escape focus restoration','all mobile views','backdrop close','composer in viewport'],'console_errors':errors}))
 
 
 if __name__=='__main__':main()

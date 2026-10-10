@@ -128,7 +128,7 @@ class GemmaChat(CodexChat):
             steps.append({"operation": plan["operation"], "target": plan.get("target", "")})
         raise ModelError("브라우저 작업을 중단했어요. 완료된 화면을 확인하고 다음 작업을 요청해 주세요.")
 
-    def retrieval_keywords(self, message, history, clinician_context=None):
+    def retrieval_keywords(self, message, history, clinician_context=None, *, require_web=False, task_brief=""):
         self.browser_decision = None
         if not self.browser_search_enabled:
             self.search_terms = super().retrieval_keywords(message, history, clinician_context)
@@ -141,13 +141,20 @@ class GemmaChat(CodexChat):
             "request to search. Usually do not search for conversation, personal check-ins, clinician coaching, "
             "local calendar actions, or classical quotations already in the DB. The decision is yours, not a "
             "keyword rule. Return search_needed and a focused public search_query; if not needed query is empty. "
-            "Never put patient names, identifiers, private records or clinician instructions into the query.", {
+            "Never put patient names, identifiers, private records or clinician instructions into the query. "
+            "When SEARCH_REQUIRED is true, the conversation agent has already chosen a web task: "
+            "return search_needed=true and a nonempty public search_query. Resolve 'that' and other short "
+            "followups from RECENT_CONVERSATION rather than treating them as an unrelated new question.", {
                 "CURRENT_USER_MESSAGE": message,
+                "SEARCH_REQUIRED": require_web,
+                "ASSIGNED_TASK_BRIEF": task_brief,
                 "CURRENT_DATE_KST": datetime.now(timezone(timedelta(hours=9))).isoformat(),
                 "CLINICIAN_CONTEXT": clinician_context or [],
                 "RECENT_CONVERSATION": [{"role": m["role"], "content": m["content"]} for m in history[-6:]]}, schema)
         keywords = parsed.get("keywords")
         needed, query = parsed.get("search_needed"), parsed.get("search_query")
+        if require_web and isinstance(needed, bool):
+            needed = True
         if (not isinstance(keywords, list) or any(not isinstance(k, str) for k in keywords)
                 or not isinstance(needed, bool) or not isinstance(query, str)
                 or (needed and not query.strip()) or len(query) > 250):

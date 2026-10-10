@@ -65,7 +65,7 @@ class ConversationAgentTests(unittest.TestCase):
             saved = self.app.chat(self.sid, {"message": "안녕"})
         self.assertEqual(len(self.calls), 1)
         self.assertIs(self.calls[0][0], self.main)
-        self.assertEqual(self.calls[0][1], {"CURRENT_USER_MESSAGE": "안녕"})
+        self.assertEqual(self.calls[0][1], {"CURRENT_USER_MESSAGE": "안녕", "RECENT_CONVERSATION": [], "SESSION_MEMORY": []})
         self.assertEqual(saved["messages"][-1]["sources"], [])
 
     def test_records_use_separate_worker_no_db_and_exact_user_quote(self):
@@ -80,6 +80,41 @@ class ConversationAgentTests(unittest.TestCase):
         self.assertEqual(saved["messages"][-1]["content"], "점심 후 산책 10분을 이야기해 줬네.")
         self.assertEqual(saved["memories"][0]["quote"], message)
         self.assertEqual(saved["messages"][-1]["sources"], [])
+
+    def test_main_receives_same_session_history_but_not_another_session(self):
+        self.app.store.save_turn(self.sid, "내 별명은 도토리야.", "도토리님, 반가워요!", [], [], "codex")
+        other = self.app.store.create_session()["id"]
+        self.app.store.save_turn(other, "내 별명은 밤톨이야.", "반가워요.", [], [], "codex")
+        with self.execute_sequence([{"reply": "도토리라고 하셨어요.", "task": "none", "instruction": ""}]):
+            self.app.chat(self.sid, {"message": "내 별명 뭐였지?"})
+        context = self.calls[0][1]["RECENT_CONVERSATION"]
+        self.assertEqual([m["content"] for m in context], ["내 별명은 도토리야.", "도토리님, 반가워요!"])
+        self.assertNotIn("밤톨", str(self.calls[0][1]))
+        with self.execute_sequence([{"reply": "아직 이야기하지 않으셨어요.", "task": "none", "instruction": ""}]):
+            fresh = self.app.store.create_session()["id"]
+            self.app.chat(fresh, {"message": "내 별명 뭐였지?"})
+        self.assertEqual(self.calls[0][1]["RECENT_CONVERSATION"], [])
+
+    def test_followup_context_includes_previously_displayed_classical_evidence(self):
+        source = {"title": "동의보감", "citations": [{"quote": "起居有常", "reading": "생활에 규칙이 있다"}]}
+        self.app.store.save_turn(self.sid, "생활 원문 찾아줘.", "원문을 찾았어요.", [source], [], "codex")
+        with self.execute_sequence([{"reply": "일정한 생활 리듬을 뜻해요.", "task": "none", "instruction": ""}]):
+            self.app.chat(self.sid, {"message": "그 문장이 무슨 뜻이야?"})
+        self.assertEqual(self.calls[0][1]["RECENT_CONVERSATION"][-1]["citations"][0]["quote"], "起居有常")
+
+    def test_web_task_runs_search_even_when_query_agent_returns_false(self):
+        self.main.browser_search_enabled = True
+        self.app.store.save_turn(self.sid, "질병관리청 수면 안내가 궁금해.", "관련 자료를 확인해볼 수 있어요.", [], [], "codex")
+        result = {"query": "질병관리청 수면 안내", "provider": "네이버", "urls": ["https://health.kdca.go.kr/"]}
+        responses = [{"reply": "검색할게요.", "task": "web", "instruction": "이전 주제인 질병관리청 수면 안내 검색"},
+                     {"keywords": [], "search_needed": False, "search_query": "질병관리청 수면 안내"},
+                     {"reply": "검색 결과를 확인했어요."}]
+        with self.execute_sequence(responses), patch("browser_bridge.BrowserBridge.search", return_value=result) as search:
+            saved = self.app.chat(self.sid, {"message": "그거 웹에서 찾아봐."})
+        search.assert_called_once_with("질병관리청 수면 안내")
+        self.assertTrue(self.calls[1][1]["SEARCH_REQUIRED"])
+        self.assertIn("질병관리청", self.calls[1][1]["ASSIGNED_TASK_BRIEF"])
+        self.assertTrue(saved["messages"][-1]["actions"][0]["completed"])
 
     def test_record_recall_keeps_existing_observations_without_new_writes(self):
         quote = "오늘 커피를 2잔 마셨어."

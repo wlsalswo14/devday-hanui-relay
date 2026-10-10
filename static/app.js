@@ -149,7 +149,7 @@ $("message").addEventListener("keydown",event=>{if(event.key==="Enter"&&!event.s
 $("mode").addEventListener("change",()=>{state.mode=$("mode").value;setModeDescription();$("chat-menu").open=false;});
 async function deleteConversation(id){
   if(state.busy||!state.sessions.some(s=>s.id===id)||!window.confirm("이 대화와 연결된 생활기록을 모두 삭제할까요?"))return;
-  busy(true);showError("");try{const current=state.session?.id===id;await api(`/api/sessions/${id}`,{method:"DELETE"});delete state.drafts[id];await refreshSessions();if(current){state.session=null;useSession(state.sessions.length?await api(`/api/sessions/${state.sessions[0].id}`):await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();}$("chat-menu").open=false;}catch(error){showError(error.message);}finally{busy(false);const selected=document.querySelector('.session-item[aria-current="true"]');if(selected&&selected.checkVisibility())selected.focus();}
+  busy(true);showError("");try{const current=state.session?.id===id;await api(`/api/sessions/${id}`,{method:"DELETE"});delete state.drafts[id];if(typeof reportDocuments!=="undefined")reportDocuments.delete(id);await refreshSessions();if(current){state.session=null;useSession(state.sessions.length?await api(`/api/sessions/${state.sessions[0].id}`):await api("/api/sessions",{method:"POST",body:"{}"}));await refreshSessions();}$("chat-menu").open=false;}catch(error){showError(error.message);}finally{busy(false);const selected=document.querySelector('.session-item[aria-current="true"]');if(selected&&selected.checkVisibility())selected.focus();}
 }
 $("reset").addEventListener("click",()=>{if(state.session)deleteConversation(state.session.id);});
 $("close-source").addEventListener("click",()=>$("source-dialog").close());

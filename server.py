@@ -15,6 +15,7 @@ from request_lifecycle import RequestManager, RequestCancelled, check_cancelled
 from store import Store
 from care import text, local_time
 from reminders import Reminders
+from report_documents import ReportDocuments
 
 ROOT = Path(__file__).resolve().parent
 
@@ -78,6 +79,7 @@ class App:
         self.requests = RequestManager()
         self.care = self.store.care
         self.reminders = Reminders(self.store, self.model)
+        self.report_documents = ReportDocuments(self.store)
 
     def web_search(self, session_id, body, kind):
         self.store.get_session(session_id)
@@ -355,6 +357,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, {"records": self.app.store.library(query.get("q", [""])[0][:300], query.get("category", [""])[0])})
             except ValueError as exc:
                 return self.respond(400, {"error": str(exc)})
+        document = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/report", path)
+        if document:
+            try:
+                return self.respond(200, self.app.report_documents.get(document[1]))
+            except KeyError:
+                return self.respond(404, {"error": "대화를 찾지 못했어요."})
         report = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/visit-report", path)
         if report:
             try:
@@ -378,7 +386,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, self.app.store.get_session(match[1]))
             except KeyError:
                 return self.respond(404, {"error": "대화를 찾지 못했어요."})
-        files = {"/": "index.html", "/app.css": "app.css", "/shell.css": "shell.css", "/report-print.css": "report-print.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/guidance.js": "guidance.js", "/reminders.js": "reminders.js", "/favicon.svg": "favicon.svg"}
+        files = {"/": "index.html", "/app.css": "app.css", "/shell.css": "shell.css", "/report-print.css": "report-print.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/guidance.js": "guidance.js", "/reminders.js": "reminders.js", "/report.js": "report.js", "/favicon.svg": "favicon.svg"}
         if path in files:
             file = ROOT / "static" / files[path]
             if file.exists():
@@ -399,7 +407,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.respond(415, {"error": "JSON 요청만 받을 수 있어요."})
         try:
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= 20000:
+            limit = 100000 if re.fullmatch(r"/api/sessions/[a-f0-9]{32}/report", urlparse(self.path).path) else 20000
+            if not 0 < length <= limit:
                 self.close_connection = True
                 return self.respond(413, {"error": "요청이 너무 크거나 비어 있어요."})
             body = json.loads(self.rfile.read(length))
@@ -412,6 +421,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.respond(200, {"cancelled": True})
             if path == "/api/sessions":
                 return self.respond(201, self.app.store.create_session())
+            document = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/report", path)
+            if document:
+                return self.respond(200, self.app.report_documents.save(document[1], body))
             match = re.fullmatch(r"/api/sessions/([a-f0-9]{32})/title", path)
             if match:
                 if not self.app.lock.acquire(blocking=False):

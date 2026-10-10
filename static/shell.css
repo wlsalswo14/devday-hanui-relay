@@ -1,19 +1,10 @@
 @media screen {
-  #report-sheet { max-width:850px; margin:0 auto; padding:16px 0; border:0; border-radius:0; box-shadow:none; gap:20px; }
-  #report-sheet .report-header { border:0; padding:0; margin:0; }
-  #report-sheet .report-header h2 { display:none; }
-  #report-sheet .report-header p { margin:0; color:#61718a; font-size:13px; }
-  #report-sheet .report-section h3 { margin:0 0 12px; font-size:16px; }
-  #report-sheet .report-coverage { display:flex; flex-wrap:wrap; gap:8px 18px; padding:0 0 20px; border-bottom:1px solid #e7ebf2; }
-  #report-sheet .report-coverage strong { color:#283a54; font-weight:500; }
-  #report-sheet .report-instruction { padding:14px 84px 14px 0; }
-  #report-sheet .report-rate { font-size:28px; font-weight:600; }
-  #report-sheet .report-claim { margin:6px 0 0; font-size:13px; color:#61718a; }
-  #report-sheet .report-calculation,#report-sheet .report-days { margin-top:10px; font-size:12px; color:#61718a; }
-  #report-sheet .report-detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:28px; }
-  #report-sheet .report-trend,#report-sheet .report-patient-note { margin:10px 0; font-size:14px; line-height:1.7; }
-  #report-sheet .report-footer { font-size:12px; color:#61718a; }
-  @media (max-width:700px) { #report-sheet .report-detail-grid { grid-template-columns:1fr; gap:20px; } }
+  #report-sheet.report-document { display:block; max-width:820px; margin:24px auto 0; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+  #report-document-title { width:100%; padding:12px 0 20px; border:0; border-bottom:1px solid #e7ebf2; border-radius:0; background:transparent; font-size:26px; font-weight:600; }
+  #report-document-body { display:block; width:100%; min-height:calc(100dvh - 300px); padding:24px 0; border:0; border-radius:0; background:transparent; font-size:16px; line-height:1.9; resize:vertical; }
+  #report-print { display:none; }
+  #report-state { margin:0; max-width:240px; font-size:12px; }
+  @media (max-width:700px) { #report-document-title { font-size:22px; } #report-state { max-width:120px; } }
   .reminder-tray { position:fixed; z-index:60; top:70px; right:24px; width:min(340px,calc(100vw - 32px)); display:grid; gap:10px; max-height:50vh; overflow:auto; }
   .reminder-tray[hidden] { display:none; }
   .reminder-card { padding:16px; border:1px solid #dce3f0; border-radius:18px; background:#fff; box-shadow:0 8px 30px #23355215; }
@@ -614,6 +605,7 @@
   #context-sidebar #close-sidebar { font-size:12px; }
   @media(max-width:700px) {
     body:not(.nav-open) #app-sidebar { visibility:hidden; }
+    body:not(.nav-open) #app-sidebar * { visibility:hidden !important; transition:none !important; }
     body.nav-open #app-sidebar { visibility:visible; }
   }
 }

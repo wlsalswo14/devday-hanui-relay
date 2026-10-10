@@ -13,6 +13,7 @@
   <script src="/care.js" defer></script>
   <script src="/calendar.js" defer></script>
   <script src="/guidance.js" defer></script>
+  <script src="/report.js" defer></script>
   <script src="/reminders.js" defer></script>
 </head>
 <body>
@@ -79,7 +80,14 @@
       <section class="tool-card own-calendar"><div class="calendar-toolbar"><h2 id="calendar-month-title"></h2><div class="row-actions"><button id="calendar-prev" type="button" class="quiet" aria-label="이전 달">‹</button><button id="calendar-today" type="button" class="secondary">오늘</button><button id="calendar-next" type="button" class="quiet" aria-label="다음 달">›</button></div></div><div class="calendar-legend" aria-label="일정 종류"><span>개인 일정</span><span class="prepared">예약 준비 · 접수 전</span><span class="confirmed">병원 확정</span></div><div class="calendar-layout"><div><div class="calendar-weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div id="calendar-grid" class="calendar-grid" role="group" aria-label="월별 캘린더"></div></div><aside class="calendar-agenda"><h3 id="calendar-day-title"></h3><div id="calendar-day-list"></div><button id="calendar-day-add" type="button" class="secondary">일정 추가</button></aside></div></section>
       <div class="tool-grid"><section class="tool-card"><h2>내 일정</h2><div id="events-list"></div></section><section class="tool-card"><h2>예약</h2><p class="section-caption">예약 준비 · 접수 전</p><div id="bookings-list"></div></section></div>
     </section>
-    <section id="report-view" class="tool-view" hidden aria-labelledby="report-title"><div class="view-head"><h1 id="report-title">리포트</h1><button id="print-report" class="secondary" type="button">인쇄</button></div><form id="report-form" class="report-controls"><label for="report-end">종료일</label><input id="report-end" type="date" required><button class="secondary">갱신</button></form><p id="report-state" class="search-note" role="status"></p><article id="report-sheet" class="report-sheet"></article></section>
+    <section id="report-view" class="tool-view" hidden aria-labelledby="report-title">
+      <div class="view-head"><h1 id="report-title">리포트</h1><div class="row-actions"><span id="report-state" class="search-note" role="status"></span><button id="print-report" class="quiet" type="button">인쇄</button><button id="save-report" class="primary" type="button">저장</button></div></div>
+      <article id="report-sheet" class="report-document">
+        <label for="report-document-title" class="sr-only">리포트 제목</label><input id="report-document-title" class="report-document-title" maxlength="160" placeholder="제목" autocomplete="off">
+        <label for="report-document-body" class="sr-only">리포트 본문</label><textarea id="report-document-body" class="report-document-body" maxlength="20000" placeholder="자유롭게 작성하세요." spellcheck="false"></textarea>
+        <div id="report-print"><h1 id="report-print-title"></h1><div id="report-print-body"></div></div>
+      </article>
+    </section>
   </main>
   <div id="tool-status" class="toast" role="status" hidden></div>
   <dialog id="guidance-dialog" aria-labelledby="guidance-title"><div class="dialog-top"><span class="eyebrow">한의사 지침 → 개인 목표</span><button type="button" class="quiet close-dialog">닫기 ×</button></div><h2 id="guidance-title">한의사 지침 입력</h2><form id="guidance-form" class="fields"><div class="field-grid"><label>입력자 표기<input id="guidance-author" maxlength="80" value="담당 한의사" required></label><label>지침 시작일<input id="guidance-start" type="date" required></label></div><label>한의사 진단·평가 (선택)<textarea id="guidance-assessment" rows="3" maxlength="2000" placeholder="한의사가 기록한 진단과 생활 관리 맥락"></textarea></label><label>생활 지침 원문<textarea id="guidance-text" rows="6" maxlength="4000" placeholder="취침 23시 전, 찬 음식 줄이기, 커피 1잔 이하, 점심 후 산책 10분" required></textarea></label><p class="section-caption">쉼표·줄바꿈으로 구분</p><button class="primary">지침·개인 목표 저장</button></form></dialog>

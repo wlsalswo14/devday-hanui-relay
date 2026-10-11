@@ -1,0 +1,172 @@
+[
+  {
+    "id": "01-prism",
+    "name": "Prism · 빛의 대화",
+    "layout": "왼쪽 미니 레일 + 넓은 중앙 대화 캔버스",
+    "palette": [
+      "#f8f7ff",
+      "#7054d8",
+      "#a2b7ff"
+    ],
+    "reference": "mobbin",
+    "brief": "Airy pearl white, periwinkle and iris. Conversational app with a tiny left rail, oversized center greeting and two short existing chat messages, expansive bottom composer. Restrained spectral gradient identity, thin rounded line icons and pill controls. No dashboard widgets. Primary center max860px. Two evidence chips under the answer. Soft sophisticated daylight, asymmetric welcome, very few words.",
+    "summary": "진주빛 백색과 페리윙클 색조 위로 미니 레일과 넓은 860px 캔버스를 펼쳐 고문헌 인용과 처방 지침을 정갈하게 대화로 연결한 프리즘 인터페이스입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 50.34,
+    "reference_url": "https://mobbin.com/"
+  },
+  {
+    "id": "02-clinic",
+    "name": "Clinic · 명료한 관리",
+    "layout": "상단 탭 + 지표 행 + 관리 대시보드",
+    "palette": [
+      "#f1f5f9",
+      "#142c49",
+      "#2475eb"
+    ],
+    "reference": "shadcn",
+    "brief": "Professional white and deep navy with cobalt primary. NO left sidebar. Top horizontal navigation tabs, strong flat four-column KPI row, below it large left adherence line chart, narrow right clinician instruction list. Lower compact next-visit row and a small agent briefing. Precise outlined icons, compact 8px radii, fine dividers, modular dashboard with high legibility. Clearly a real application, not a marketing landing page.",
+    "summary": "상단 가로 탭 네비게이션과 4열 KPI 행, 주간 순응도 분석 차트 및 임상 지침 중심의 정갈한 shadcn 스타일 한방 진료 모니터링 대시보드.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 56.97,
+    "reference_url": "https://ui.shadcn.com/blocks"
+  },
+  {
+    "id": "03-folio",
+    "name": "Folio · 나의 건강 저널",
+    "layout": "책 목차 + 중앙 저널 + 여백 메모",
+    "palette": [
+      "#f5efe2",
+      "#382e25",
+      "#a96136"
+    ],
+    "reference": "details",
+    "brief": "Book-like warm paper, ink brown and burnt ochre. Left small numbered table of contents, large central dated journal with elegant Georgia/serif editorial display titles, narrow right handwritten-feeling margin notes using serif (no external fonts). No chat bubbles or rounded card dashboard. Typeset daily record, blockquote of classical original, 78% typographic numeral in margin, bottom minimal ruled writing field. Wide breathing space, hairline paper rules, custom simple ink symbols.",
+    "summary": "온화한 한지 질감 위에 목차와 중앙 일일 저널, 그리고 여백 주석으로 고문헌 원문과 섭생 지침을 정갈하게 조판한 한의 북 저널 디자인입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 65.23,
+    "reference_url": "https://www.details.so/inspo"
+  },
+  {
+    "id": "04-night",
+    "name": "Night · 집중하는 에이전트",
+    "layout": "전체 화면 대화 + 상단 명령 바 + 하단 상태 띠",
+    "palette": [
+      "#10151d",
+      "#84e4e0",
+      "#8b9ba9"
+    ],
+    "reference": "prompt-motion",
+    "brief": "Obsidian dark focus workspace, restrained electric cyan mint accent, cool steel secondary. NO sidebar and NO cards grid. Thin top command/navigation bar with monospaced tiny labels. Full-width central left-aligned conversation with compact agent identity, one cited answer and terminal-like evidence drawer below. Composer stretched across lower canvas, footer narrow status strip. Crisp square line icons, 4px corners, high-contrast text, slight nonanimated grain/dot background created in CSS. Entire layout calm, mature, not gamer neon.",
+    "summary": "단일 화면 중심의 흑요석 다크 테마에서 상단 명령 바와 하단 상태 띠를 배치하고 정밀한 고문헌 인용 터미널 드로어를 결합한 에이전트 대화 인터페이스입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 51.91,
+    "reference_url": "https://www.prompt-motion.com/"
+  },
+  {
+    "id": "05-grove",
+    "name": "Grove · 일상의 회복",
+    "layout": "식물 그래픽이 있는 왼쪽 면 + 오른쪽 체크인",
+    "palette": [
+      "#e9ecdf",
+      "#244d3b",
+      "#ba7859"
+    ],
+    "reference": "awwwards",
+    "brief": "A full-height split composition. Left 42% deep forest green art panel with original large abstract botanical leaves drawn inline SVG, brief Korean welcome, subtle serif. Right 58% pale sage canvas contains compact top nav and a gentle daily-check-in dialogue plus two yes/no buttons, lower completed-habit list. Terracotta accent, organic leaf/petal symbols and very soft oval geometry. No conventional sidebar, no statistics dashboard. Personal warm wellness, sophisticated not rustic clutter.",
+    "summary": "깊은 녹음의 식물 그래픽 패널과 부드러운 세이지빛 체크인 캔버스를 대비시킨 한의 라이프케어 인터페이스입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 64.02,
+    "reference_url": "https://www.awwwards.com/sites/moxie"
+  },
+  {
+    "id": "06-swiss",
+    "name": "Swiss · 선명한 건강",
+    "layout": "큰 타이포 + 번호를 붙인 가로 정보 띠",
+    "palette": [
+      "#fafafa",
+      "#161616",
+      "#c3ef4c"
+    ],
+    "reference": "lapa",
+    "brief": "Swiss editorial ultra-bold black white with acid-lime one small accent. NO sidebar, NO floating cards. Upper masthead with compact nav, huge tight type heading \"오늘의 균형.\" across upper half. Below stack three strongly separated full-width horizontal bands: 01 instruction + status, 02 brief conversation, 03 next visit. 78% huge black number as grid element. Rectangular buttons, large whitespace, a few custom geometric filled icons. Asymmetric strict grid, line-based structure, clean impressive typography.",
+    "summary": "볼드한 블랙 앤 화이트와 애시드 라임 악센트로 엄격한 스위스 국제 타이포그래피 양식을 구현한 가로 정보 띠 구조의 한의 데스크톱 인터페이스입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 51.44,
+    "reference_url": "https://www.lapa.ninja/category/wellness/"
+  },
+  {
+    "id": "07-orbit",
+    "name": "Orbit · 하루를 설계하다",
+    "layout": "가로 주간 캘린더 + 시간축 + 오른쪽 대화 패널",
+    "palette": [
+      "#fff5ee",
+      "#ca5a42",
+      "#3c3330"
+    ],
+    "reference": "shadcn",
+    "brief": "Soft peach and coral calendar-first personal planner. NO left nav rail. Top compact header, seven-day horizontal date ribbon beneath, main vertical time agenda on left with two sparse event blocks and large open times, right warm-white narrow agent conversation column and message field. Circle clock icons, lightly curved colored event edges, clear event titles and roomy time labels. Bottom understated weekly compliance badge. Must look like a planner, not a dashboard or chatbot homepage.",
+    "summary": "복숭앗빛 캔버스와 코랄 악센트의 주간 가로 리본 아래, 간결한 하루 시간축과 실시간 대화창을 shadcn 블록의 정갈한 여백으로 정렬한 플래너형 애플리케이션 디자인입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 52.03,
+    "reference_url": "https://ui.shadcn.com/blocks"
+  },
+  {
+    "id": "08-atlas",
+    "name": "Atlas · 근거를 읽는 공간",
+    "layout": "문헌 목록 / 원문 리더 / 풀이의 3열 작업대",
+    "palette": [
+      "#eef0fa",
+      "#433378",
+      "#b8a7eb"
+    ],
+    "reference": "details",
+    "brief": "Three-pane evidence research reader. Left 22% searchable source list showing three ancient texts; center 48% open document reader with title, chapter breadcrumb, large readable Chinese original and exact line locations, restrained highlights; right 30% Korean interpretation and a short agent dialogue/composer. Top horizontal application header and slim toolbar. Cool gray lavender, deep plum active state. Fine scholarly book/bookmark icons, squared inset panels, no hero greetings or habit dashboard. Do not create a map.",
+    "summary": "고문헌 색인, 대형 한자 원문 리더, 현대적 강해와 환자 상담 도크가 정갈하게 구획된 3열 학술 근거형 데스크톱 디자인입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 50.19,
+    "reference_url": "https://www.details.so/inspo"
+  },
+  {
+    "id": "09-bloom",
+    "name": "Bloom · 가벼운 습관",
+    "layout": "중앙 모바일 앱 구조 + 하단 내비게이션",
+    "palette": [
+      "#fbedf3",
+      "#da598d",
+      "#9b7ac3"
+    ],
+    "reference": "mobbin",
+    "brief": "Friendly soft rose lavender mobile-app-first centered canvas max620px on desktop (not fake phone hardware), outer desktop background has subtle pastel abstract disks. Main top greeting, one large playful progress ring with 78%, two stacked short rounded habit blocks, single compact agent question with yes/no, and real bottom visual navigation three icon+label items. Use original rounded filled icons, generous touch targets, one original flower SVG. No sidebar, no top tab system, no three-column grid. Crisp readable text, polished playful but not childish.",
+    "summary": "화사한 로즈·라벤더 톤과 원형 모티프를 바탕으로 일일 습관 달성률과 대화형 권고를 직관적으로 전달하는 모바일 앱 중심 뷰포트 디자인입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 114.06,
+    "reference_url": "https://mobbin.com/"
+  },
+  {
+    "id": "10-zen",
+    "name": "Zen · 조용한 한의학",
+    "layout": "오른쪽 세로 내비게이션 + 비대칭 원문·대화",
+    "palette": [
+      "#f2f1ed",
+      "#222b36",
+      "#8b3d45"
+    ],
+    "reference": "awwwards",
+    "brief": "Contemporary Korean ink minimalism. Light stone, charcoal and tiny muted cinnabar accents. NO left sidebar. Right full-height slender navigation with vertical Korean labels and fine circular icons. Remaining canvas asymmetrical: upper-left large classical Chinese \"起居有常\" and tiny chapter/location; lower-right a narrow Korean dialogue and ruled composer; understated black ink circle drawn SVG near left center. No cards, no charts, fewest words of all ten. Refined serif original text, sans-serif Korean, monumental whitespace and distinct vertical alignment. Mobile convert right nav to slim bottom row without overflow.",
+    "summary": "우측 슬렌더 세로 내비게이션과 비대칭 원문·대화 배치를 적용하고 거대한 한자 표제와 수묵 엔소 모티프로 절제된 여백을 구현한 젠 스타일 디자인입니다.",
+    "model": "gemini-3.8-flash",
+    "thinking": "HIGH",
+    "generation_seconds": 51.77,
+    "reference_url": "https://www.awwwards.com/sites/moxie"
+  }
+]

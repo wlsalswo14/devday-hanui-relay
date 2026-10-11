@@ -13,8 +13,8 @@ function savedId(){try{return localStorage.getItem(sessionStorageKey());}catch{r
 function saveId(id){try{localStorage.setItem(sessionStorageKey(),id);}catch{/* In-memory session remains usable. */}}
 let activeAI=null, uiGeneration=0, loadingClock=null;
 const mobileNav=matchMedia("(max-width:700px)");
-let desktopNavCollapsed=false;
-try{desktopNavCollapsed=localStorage.getItem("hanui_nav_collapsed")==="true";}catch{}
+let desktopNavCollapsed=true;
+try{const preference=localStorage.getItem("hanui_prism_nav_collapsed");if(preference!==null)desktopNavCollapsed=preference==="true";}catch{}
 function toggleNav(open){
   if(mobileNav.matches){
     if(!open&&$("app-sidebar").contains(document.activeElement))$("mobile-nav-toggle").focus();
@@ -23,10 +23,10 @@ function toggleNav(open){
     $("mobile-nav-toggle").setAttribute("aria-expanded",String(open));
     if(open)$("nav-toggle").focus();
   }else{
-    if(!open&&$("app-sidebar").contains(document.activeElement))$("nav-toggle").focus();
+    if(!open&&document.querySelector(".sidebar-conversations").contains(document.activeElement))$("nav-toggle").focus();
     desktopNavCollapsed=!open;document.body.classList.toggle("nav-collapsed",!open);
     $("app-sidebar").inert=false;$("nav-backdrop").hidden=true;
-    try{localStorage.setItem("hanui_nav_collapsed",String(!open));}catch{}
+    try{localStorage.setItem("hanui_prism_nav_collapsed",String(!open));}catch{}
   }
   $("nav-toggle").setAttribute("aria-expanded",String(open));
   $("nav-toggle").setAttribute("aria-label",open?"메뉴 접기":"메뉴 열기");
@@ -116,7 +116,7 @@ function render(){
   if(!state.session.messages.length)messages.append(welcome());
   state.session.messages.forEach(message=>{
     const article=node("article",`message ${message.role}`);article.id="message-"+message.id;const label=node("div","message-label");
-    if(message.role==="assistant")label.append(node("span","mini-mark","h."));
+    if(message.role==="assistant"){const mark=node("span","mini-mark","✦");mark.setAttribute("aria-hidden","true");label.append(mark);}
     if(message.role==="assistant"&&message.mode!=="codex")label.append(node("span","","샘플"));if(message.role==="assistant")article.append(label);article.append(node("div","bubble",message.content));
     if(message.sources?.length){const sourceDetails=fold(`근거 ${message.sources.length}`,[],"source-preview");const sourceContent=node("div","source-content");message.sources.forEach(record=>{
       if(record.citations?.length){const passage=node("section","quoted-passage");passage.append(node("span","source-kind",shortText(sourceName(record),55)));

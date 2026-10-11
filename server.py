@@ -461,7 +461,7 @@ class Handler(BaseHTTPRequestHandler):
             except KeyError:
                 return self.respond(404, {"error": "대화를 찾지 못했어요."})
         files = {"/": "index.html", "/app.css": "app.css", "/shell.css": "shell.css", "/report-print.css": "report-print.css", "/app.js": "app.js", "/care.js": "care.js", "/calendar.js": "calendar.js", "/guidance.js": "guidance.js", "/reminders.js": "reminders.js", "/report.js": "report.js", "/favicon.svg": "favicon.svg"}
-        files.update({"/care-home.js":"care-home.js","/care-home.css":"care-home.css","/account.js":"account.js","/sw.js":"sw.js"})
+        files.update({"/care-home.js":"care-home.js","/care-home.css":"care-home.css","/prism.css":"prism.css","/account.js":"account.js","/sw.js":"sw.js"})
         if path in files:
             file = ROOT / "static" / files[path]
             if file.exists():

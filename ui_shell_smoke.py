@@ -28,14 +28,25 @@ def main():
                 for selector in ['.app-nav','#new-chat','#session-list','#context-sidebar','#chat-menu']:
                     assert page.locator(selector).evaluate("e=>!!e.closest('#app-sidebar')"),selector
                 assert page.locator('.conversation-bar').count()==0
+                assert page.locator('#app-sidebar').bounding_box()['width']==72
+                expect(page.locator('.app-nav')).to_be_visible()
+                expect(page.locator('.sidebar-conversations')).to_be_hidden()
+                expect(page.locator('#new-chat')).to_be_visible()
+                expect(page.locator('#system-instructions-open')).to_be_visible()
+                for view in ['calendar','report','chat']:
+                    page.locator(f'.app-nav [data-view="{view}"]').click()
+                    if view!='chat':expect(page.locator(f'#{view}-view')).to_be_visible()
+                page.locator('#nav-toggle').click()
                 assert page.locator('#app-sidebar').bounding_box()['width']==260
                 initial=page.locator('#messages').bounding_box()['width']
                 page.locator('#nav-toggle').click()
-                expect(page.locator('.app-nav')).to_be_hidden()
-                assert page.locator('#app-sidebar').bounding_box()['width']==68
+                expect(page.locator('.app-nav')).to_be_visible()
+                expect(page.locator('.sidebar-conversations')).to_be_hidden()
+                assert page.locator('#app-sidebar').bounding_box()['width']==72
                 assert page.locator('#messages').bounding_box()['width']>=initial
                 page.reload(wait_until='networkidle')
-                expect(page.locator('.app-nav')).to_be_hidden()
+                expect(page.locator('.app-nav')).to_be_visible()
+                expect(page.locator('.sidebar-conversations')).to_be_hidden()
                 page.locator('#nav-toggle').click()
                 first=page.locator('#session-select').input_value()
                 page.locator('#new-chat').click()

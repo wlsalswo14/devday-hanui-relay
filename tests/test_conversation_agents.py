@@ -177,7 +177,7 @@ class ConversationAgentTests(unittest.TestCase):
             {"keywords": ["起居"]}, {"reply": "원문을 찾았어.", "citations": [{"source_id": "fixture", "quote": "起居有常", "reading": "생활에 규칙이 있다"}]}]
         with self.execute_sequence(responses), patch.object(self.app.store, "search_fulltext", return_value=[source]) as search:
             saved = self.app.chat(self.sid, {"message": "동의보감 원문 찾아줘"})
-        search.assert_called_once_with(["起居"], 4)
+        search.assert_called_once_with(["起居"], 5)
         self.assertIs(self.calls[1][0], self.calls[2][0])
         self.assertIsNot(self.calls[1][0], self.main)
         self.assertEqual(len(self.calls), 3)

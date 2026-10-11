@@ -176,7 +176,7 @@ def run_conversation(main, store, message, session):
                 raise ModelError("웹검색 연결이 비활성화되어 있어요.")
             keywords = worker.retrieval_keywords(message, session["messages"], care["guidance"]["plans"], require_web=task == "web", task_brief=instruction)
             if task == "literature":
-                sources = store.search_fulltext(keywords, 4)
+                sources = store.search_fulltext(keywords, 5)
         else:
             worker.browser_search_enabled = False
         worker_system = persona + "\n\nTASK_EXECUTION_RULES:\n" + WORKER_SYSTEM
